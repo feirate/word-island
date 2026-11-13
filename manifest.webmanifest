@@ -1,0 +1,17 @@
+{
+  "id": "./",
+  "name": "词遇岛",
+  "short_name": "词遇岛",
+  "description": "每天一小段英语冒险，和动物伙伴一起练听辨、拼写与跟读。",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f2e8",
+  "theme_color": "#2f6658",
+  "icons": [
+    { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

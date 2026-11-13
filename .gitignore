@@ -1,0 +1,8 @@
+node_modules/
+_site/
+.DS_Store
+tmp/
+test-results/
+*.blend1
+*.log
+.env*

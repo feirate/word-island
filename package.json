@@ -1,0 +1,11 @@
+{
+  "name": "word-island",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "词遇岛：在单词里冒险，和伙伴一起长大。",
+  "scripts": {
+    "dev": "python3 -m http.server 4173 --bind 127.0.0.1",
+    "test": "node --test tests/*.test.js"
+  }
+}

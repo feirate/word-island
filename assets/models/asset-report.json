@@ -1,0 +1,26 @@
+[
+  {
+    "asset": "home",
+    "meshes": 35,
+    "vertices": 19706,
+    "bytes": 1825956
+  },
+  {
+    "asset": "camp",
+    "meshes": 30,
+    "vertices": 34348,
+    "bytes": 2287232
+  },
+  {
+    "asset": "hero",
+    "meshes": 32,
+    "vertices": 10727,
+    "bytes": 534488
+  },
+  {
+    "asset": "bunny",
+    "meshes": 22,
+    "vertices": 9764,
+    "bytes": 450344
+  }
+]

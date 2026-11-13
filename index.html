@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f8f5ed">
+  <meta name="description" content="词遇岛：在单词里冒险，和伙伴一起长大。一个保存在自己设备上的英语学习小世界。">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>词遇岛 · Word Island</title>
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <a class="brand" href="./" aria-label="词遇岛首页"><span class="brand-mark" aria-hidden="true">W<span>✦</span></span><span><strong>词遇岛</strong><small>WORD ISLAND</small></span></a>
+      <nav class="main-nav" aria-label="主要页面">
+        <button type="button" data-nav="home" aria-current="page">我的小屋</button>
+        <button type="button" data-nav="camp">外出冒险</button>
+        <button type="button" data-nav="clues">伙伴线索 <span class="nav-count">0/7</span></button>
+        <button type="button" data-nav="growth">成长记录</button>
+      </nav>
+      <button type="button" class="parent-button" id="parent-button">家长入口 <span aria-hidden="true">⚙</span></button>
+    </header>
+    <main class="game-layout">
+      <section class="world-column" aria-label="三维学习世界">
+        <div class="scene-heading"><div><span class="eyebrow" id="scene-kicker">一个慢慢长大的小世界</span><h1 id="scene-title">欢迎回到你的小屋</h1></div><button type="button" class="mode-button" id="demo-toggle">试玩七日故事 <span aria-hidden="true">↗</span></button></div>
+        <div class="world-frame">
+          <div id="world-canvas" aria-label="可以轻点物件的三维场景"></div>
+          <div class="world-loading" id="world-loading"><span class="loading-seed" aria-hidden="true">🌱</span><strong>小岛正在醒来…</strong><span>为你摆好小屋和冒险营地</span></div>
+          <div class="world-badge"><span class="status-dot"></span><span id="world-location">暖暖小屋</span></div>
+          <div class="world-controls"><button type="button" id="camera-reset" aria-label="回到默认视角">↺ 归位</button><span>轻点物件 · 拖动看看四周</span></div>
+          <div class="demo-banner" id="demo-banner" hidden><span>演示存档 · 不影响真实进度</span><button type="button" data-action="demo-ending">看看伙伴入住</button><button type="button" data-action="exit-demo">退出试玩</button></div>
+        </div>
+        <div class="scene-shortcuts" id="scene-shortcuts"></div>
+        <div class="island-note"><span aria-hidden="true">✧</span><p id="world-caption">带着好奇心出发。每完成一次学习，就离新朋友更近一点。</p><span class="offline-status" id="offline-status">进度保存在本机</span></div>
+      </section>
+      <aside class="notebook" aria-label="今日任务与学习手记"><div id="notebook-content"></div></aside>
+    </main>
+    <footer class="app-footer"><span>在单词里冒险，和伙伴一起长大。</span><span>一个孩子 · 一个小世界 <span aria-hidden="true">✦</span></span></footer>
+  </div>
+  <dialog id="parent-dialog" aria-labelledby="parent-title"><div class="dialog-header"><div><span class="eyebrow">给家长的小工具</span><h2 id="parent-title">把成长留在自己手里</h2></div><button type="button" class="icon-button" data-close="parent-dialog" aria-label="关闭家长入口">×</button></div><div class="dialog-body">
+    <section class="setting-section"><h3>学习进度</h3><p>进度与录音保存在当前浏览器，换设备时可以导出、导入进度文件。录音与示范音频不包含在进度文件中。</p><div class="button-row"><button type="button" class="button primary" id="export-progress">导出真实进度</button><label class="button">导入进度文件<input id="import-progress" type="file" accept=".json,application/json" hidden></label><button type="button" class="button subtle" id="export-backup" hidden>导出上次导入前备份</button></div></section>
+    <section class="setting-section"><h3>本地示范音频</h3><p>内置 Daniel 英音合成示范，非教材原音，准备资源后可直接离线播放。也可优先使用自己导入的音频：单词文件命名为 milk.mp3、rice.m4a 等；短句使用 phrase-rice-please.mp3 等名称。单条不超过 15 MiB。</p><label class="button">导入本地音频<input id="import-audio" type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.webm" multiple hidden></label><p class="setting-feedback" id="audio-import-status" aria-live="polite"></p></section>
+    <section class="setting-section"><h3>离线准备</h3><p>联网打开后，准备好程序、内置英音与四个模型就能离线探索、练习。导入的音频也保存在本机，不需要下载系统声线。</p><button type="button" class="button" id="prepare-offline">准备离线资源</button><p class="setting-feedback" id="offline-detail" aria-live="polite"></p></section>
+    <section class="setting-section"><h3>陪孩子试玩</h3><p>演示存档与真实存档独立。可以快进到伙伴入住，看看孩子是否喜欢这个世界。</p><div class="button-row"><button type="button" class="button" data-action="start-demo">从第一条线索开始</button><button type="button" class="button" data-action="demo-ending">预览伙伴入住</button></div></section>
+    <div class="privacy-note">没有账号、广告、排行榜或在线语音识别。本站公开提供程序与原创模型；孩子的学习记录和录音不会被程序上传。</div>
+  </div></dialog>
+  <dialog id="import-dialog" aria-labelledby="import-title"><div class="dialog-header"><h2 id="import-title">接着另一台设备的冒险</h2><button type="button" class="icon-button" data-close="import-dialog" aria-label="取消导入">×</button></div><div class="dialog-body"><p id="import-summary"></p><p class="muted">导入会替换当前真实进度；导入前会在本机保留一份旧备份。</p><div class="button-row"><button type="button" class="button primary" id="confirm-import">备份并导入</button><button type="button" class="button" data-close="import-dialog">取消</button></div></div></dialog>
+  <dialog id="reward-dialog" aria-labelledby="reward-title"><div class="reward-art" aria-hidden="true" id="reward-emoji">🐾</div><span class="eyebrow">今天也向前走了一点</span><h2 id="reward-title"></h2><p id="reward-description"></p><div class="reward-dots" id="reward-dots"></div><button type="button" class="button primary" id="reward-continue">带回小屋 →</button></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <noscript>词遇岛需要启用 JavaScript 才能展示三维场景和保存学习进度。</noscript>
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

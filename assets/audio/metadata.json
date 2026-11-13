@@ -1,0 +1,148 @@
+{
+  "app": "word-island",
+  "version": 1,
+  "generatedAt": "2026-11-13T17:27:37.229957+00:00",
+  "engine": "macOS /usr/bin/say",
+  "voice": "Daniel",
+  "language": "en-GB",
+  "accent": "英国英语",
+  "wordsPerMinute": 145,
+  "format": "AAC / M4A",
+  "sampleRateHz": 22050,
+  "bitRate": 48000,
+  "source": "本机已安装声线离线合成示范；非教材原音。短句是软件补充示例。",
+  "networkServicesUsed": false,
+  "voiceDownloadsPerformed": false,
+  "clips": [
+    {
+      "id": "word-milk",
+      "key": "word:milk",
+      "text": "milk",
+      "kind": "word",
+      "file": "word-milk.m4a",
+      "bytes": 8448,
+      "durationSeconds": 0.628481,
+      "sha256": "2684002848e4a9b21fc362e820e205836a6add84cbef0d06ccf2c9902d5e9e52"
+    },
+    {
+      "id": "word-rice",
+      "key": "word:rice",
+      "text": "rice",
+      "kind": "word",
+      "file": "word-rice.m4a",
+      "bytes": 9891,
+      "durationSeconds": 0.744807,
+      "sha256": "e10f0d163c785af181afd9a7b6af7840383d274372c04e1a56b2a573ea93d00c"
+    },
+    {
+      "id": "word-chicken",
+      "key": "word:chicken",
+      "text": "chicken",
+      "kind": "word",
+      "file": "word-chicken.m4a",
+      "bytes": 8799,
+      "durationSeconds": 0.658549,
+      "sha256": "c240daf837d2bf33c447b9fb93526357bdac96cb3d9d2a8511aa44b4a4a4976b"
+    },
+    {
+      "id": "word-fish",
+      "key": "word:fish",
+      "text": "fish",
+      "kind": "word",
+      "file": "word-fish.m4a",
+      "bytes": 8134,
+      "durationSeconds": 0.611429,
+      "sha256": "2f408ec353a6e7df679c81f0af0f39404f650cc8aee197916161bd3332e8a298"
+    },
+    {
+      "id": "word-chips",
+      "key": "word:chips",
+      "text": "chips",
+      "kind": "word",
+      "file": "word-chips.m4a",
+      "bytes": 8428,
+      "durationSeconds": 0.623719,
+      "sha256": "1b74d125310d5c61b8fc4514982d2dac9374fcc0442c330ea9ac04b93b7c6d51"
+    },
+    {
+      "id": "word-fruit",
+      "key": "word:fruit",
+      "text": "fruit",
+      "kind": "word",
+      "file": "word-fruit.m4a",
+      "bytes": 8284,
+      "durationSeconds": 0.564989,
+      "sha256": "8ea69fa4ca994571caed066ea997c37a232c542a14d2248a5e792ecaf5dc5ad8"
+    },
+    {
+      "id": "word-meat",
+      "key": "word:meat",
+      "text": "meat",
+      "kind": "word",
+      "file": "word-meat.m4a",
+      "bytes": 7813,
+      "durationSeconds": 0.477551,
+      "sha256": "46be6d2b74ef27602ac21e93f96b2e4bb084722e54e185408d6043647d049fff"
+    },
+    {
+      "id": "word-breakfast",
+      "key": "word:breakfast",
+      "text": "breakfast",
+      "kind": "word",
+      "file": "word-breakfast.m4a",
+      "bytes": 11279,
+      "durationSeconds": 0.918458,
+      "sha256": "d2f26cc4514a37d61e2bf2294c7507a0ba6cb45e67dce1738314fb2c154f1c7a"
+    },
+    {
+      "id": "word-lunch",
+      "key": "word:lunch",
+      "text": "lunch",
+      "kind": "word",
+      "file": "word-lunch.m4a",
+      "bytes": 9696,
+      "durationSeconds": 0.756327,
+      "sha256": "fc45efaf17090bc5dfe6a8f029089a9a95c5e5aef0ce826c45b8e91255e59eb2"
+    },
+    {
+      "id": "word-dinner",
+      "key": "word:dinner",
+      "text": "dinner",
+      "kind": "word",
+      "file": "word-dinner.m4a",
+      "bytes": 7271,
+      "durationSeconds": 0.419501,
+      "sha256": "70f4fb8e8e3b0003a574ae3afc59db4ea8e82023e113bdf9715991027ec2aee1"
+    },
+    {
+      "id": "phrase-rice-please",
+      "key": "phrase:rice-please",
+      "text": "Can I have some rice, please?",
+      "kind": "phrase",
+      "file": "phrase-rice-please.m4a",
+      "bytes": 19243,
+      "durationSeconds": 2.350612,
+      "sha256": "eda53133d1a70429d49fec8fef14191ade085f853d57434de4f5b45ca0d6e4e1"
+    },
+    {
+      "id": "phrase-fish-and-chips",
+      "key": "phrase:fish-and-chips",
+      "text": "I like fish and chips.",
+      "kind": "phrase",
+      "file": "phrase-fish-and-chips.m4a",
+      "bytes": 15021,
+      "durationSeconds": 1.572744,
+      "sha256": "42f698fcf2ea4007406fcdb8bf6449438a9343e475d459d821ff3c20a83ca2cd"
+    },
+    {
+      "id": "phrase-milk-breakfast",
+      "key": "phrase:milk-breakfast",
+      "text": "I have milk for breakfast.",
+      "kind": "phrase",
+      "file": "phrase-milk-breakfast.m4a",
+      "bytes": 17373,
+      "durationSeconds": 1.896508,
+      "sha256": "f7950f0128383466771acd35c985d91f90aad2045d5614268deab2d3dfcf76c3"
+    }
+  ]
+}

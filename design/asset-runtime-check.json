@@ -1,0 +1,101 @@
+{
+  "diagnostics": {
+    "ready": true,
+    "scene": "home",
+    "models": [
+      "home",
+      "camp",
+      "hero",
+      "bunny"
+    ],
+    "interactions": [
+      "home.bookshelf",
+      "home.clues",
+      "home.bunny",
+      "home.door",
+      "camp.chest",
+      "camp.crate",
+      "camp.mailbox",
+      "camp.sign"
+    ],
+    "companionUnlocked": false,
+    "reducedMotion": false,
+    "error": null,
+    "fps": 24,
+    "triangles": 63750,
+    "drawCalls": 67,
+    "actors": [
+      {
+        "name": "hero",
+        "visible": true,
+        "position": [
+          -0.5,
+          0.08,
+          1.25
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "headRotation": [
+          0.0039538843061334185,
+          -0.004592078327750228,
+          0.00001815524664001602,
+          0.9999816358074163
+        ],
+        "animationTime": 0.4165999999999999
+      },
+      {
+        "name": "bunny",
+        "visible": false,
+        "position": [
+          2.6,
+          0.31,
+          1.3
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "headRotation": [
+          0,
+          -0.012499678879976273,
+          0,
+          0.9999218583106995
+        ],
+        "animationTime": 0
+      }
+    ]
+  },
+  "characterChecks": [
+    {
+      "name": "hero",
+      "clipCount": 1,
+      "linkedHeadChildren": 13,
+      "animated": true
+    },
+    {
+      "name": "bunny",
+      "clipCount": 1,
+      "linkedHeadChildren": 13,
+      "animated": true
+    }
+  ],
+  "browserErrors": [],
+  "screenshots": [
+    "bunny-back.png",
+    "bunny-front.png",
+    "bunny-idle-extreme.png",
+    "bunny-side.png",
+    "bunny-three-quarter.png",
+    "camp-three.png",
+    "hero-back.png",
+    "hero-front.png",
+    "hero-idle-extreme.png",
+    "hero-side.png",
+    "hero-three-quarter.png",
+    "home-three.png"
+  ]
+}
