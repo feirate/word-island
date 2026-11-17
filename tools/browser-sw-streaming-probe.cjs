@@ -16,6 +16,10 @@ const base=process.env.PREVIEW_URL||'http://127.0.0.1:4173';
     await page.waitForFunction(()=>window.__wordIsland?.world.getDiagnostics().ready,null,{timeout:20000});
     await page.waitForFunction(()=>navigator.serviceWorker.controller?.state==='activated',null,{timeout:20000});
     const worker=context.serviceWorkers()[0];assert(worker);
+    const modelCacheKey=await worker.evaluate(()=>`${new URL('assets/models/home.glb',self.registration.scope).href}?asset=${self.WORD_ISLAND_RUNTIME.resources['assets/models/home.glb']}`);
+    // The new worker can already control first-world downloads. Make this one
+    // isolated model cold explicitly before applying the persistence fixture.
+    await page.evaluate(async key=>{for(const name of await caches.keys())await(await caches.open(name)).delete(key);},modelCacheKey);
     await worker.evaluate(()=>{
       let markPutStarted,markPutFinished;
       const probe=self.__streamingProbe={events:[],putStarted:new Promise(resolve=>{markPutStarted=resolve;}),putFinished:new Promise(resolve=>{markPutFinished=resolve;})};
@@ -33,7 +37,7 @@ const base=process.env.PREVIEW_URL||'http://127.0.0.1:4173';
         const cache=await nativeOpen(name),nativePut=cache.put.bind(cache);
         cache.put=async(key,response)=>{
           const url=typeof key==='string'?key:key.url;
-          if(!url.endsWith('/assets/models/home.glb'))return nativePut(key,response);
+          if(!new URL(url).pathname.endsWith('/assets/models/home.glb'))return nativePut(key,response);
           mark('cache-put-start');markPutStarted();
           await new Promise(resolve=>{probe.release=resolve;});
           await nativePut(key,response);mark('cache-put-finished');markPutFinished();
@@ -41,7 +45,7 @@ const base=process.env.PREVIEW_URL||'http://127.0.0.1:4173';
         return cache;
       };
     });
-    assert.equal(await page.evaluate(async()=>Boolean(await caches.match(new URL('assets/models/home.glb',location.href).href))),false,'a real cold model-cache request is required');
+    assert.equal(await page.evaluate(async key=>Boolean(await caches.match(key)),modelCacheKey),false,'a real cold model-cache request is required');
     await page.evaluate(()=>{
       const probe=window.__clientProbe={state:'pending',events:[],controller:new AbortController()};
       probe.promise=fetch(new URL('assets/models/home.glb',location.href),{signal:probe.controller.signal}).then(async response=>{
@@ -54,11 +58,11 @@ const base=process.env.PREVIEW_URL||'http://127.0.0.1:4173';
     const beforePersistenceReleased=await page.evaluate(()=>({state:window.__clientProbe.state,bytes:window.__clientProbe.bytes,events:window.__clientProbe.events}));
     assert.equal(beforePersistenceReleased.state,'complete','live headers and body must not wait for background cache persistence');
     assert.equal(beforePersistenceReleased.bytes,fs.statSync(path.resolve('assets/models/home.glb')).size);
-    const cachedBeforeRelease=await page.evaluate(async()=>Boolean(await caches.match(new URL('assets/models/home.glb',location.href).href)));
+    const cachedBeforeRelease=await page.evaluate(async key=>Boolean(await caches.match(key)),modelCacheKey);
     assert.equal(cachedBeforeRelease,false,'the fixture must still be holding the background cache write');
     await worker.evaluate(()=>self.__streamingProbe.release());
     await worker.evaluate(()=>self.__streamingProbe.putFinished);
-    await page.waitForFunction(async()=>Boolean(await caches.match(new URL('assets/models/home.glb',location.href).href)),null,{timeout:10000});
+    await page.waitForFunction(async key=>Boolean(await caches.match(key)),modelCacheKey,{timeout:10000});
     const final=await worker.evaluate(()=>({events:self.__streamingProbe.events}));
     console.log(JSON.stringify({beforePersistenceReleased,cachedBeforeRelease,afterPersistenceReleased:final,cachedAfterRelease:true,fixture:'real production local SW/network; cache.put delayed 500ms; live response must finish before persistence',mobileDeviceClaim:false},null,2));
     await context.close();

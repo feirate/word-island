@@ -105,9 +105,9 @@ test('the classic precache manifest contains exactly the generated local audio c
   }
 });
 
-test('the classic service worker loads the manifest and precaches every clip plus the new app modules', async () => {
+test('the classic service worker loads manifests but installs only the learning shell', async () => {
   const scope = 'https://example.test/word-island/';
-  const allowedScripts = ['./assets/audio/precache.js', './assets/companions-precache.js'];
+  const allowedScripts = ['./assets/audio/precache.js', './assets/companions-precache.js', './assets/runtime-manifest.js'];
   const listeners = new Map();
   const imported = [];
   let cached = [];
@@ -130,6 +130,7 @@ test('the classic service worker loads the manifest and precaches every clip plu
   listeners.get('install')({ waitUntil(promise) { installation = promise; } });
   await installation;
   assert.deepEqual(imported, allowedScripts.map(file => new URL(file, scope).href));
-  assert.deepEqual(cached.filter(url => url.endsWith('.m4a')), precache().map(path => new URL(path, scope).href));
-  for (const file of ['assets/audio/precache.js', 'assets/companions-precache.js', 'src/kb3.js', 'src/practice.js', 'src/story.js', 'src/companions.js', 'src/companion-view.js','src/speech-audio.js','src/model-loader.js']) assert.ok(cached.includes(`${scope}${file}`), file);
+  assert.deepEqual(cached.filter(url => url.endsWith('.m4a')), []);
+  assert.equal(cached.some(url => /\/vendor\/|\/world\.js$|\/companion-view\.js$|\.glb$/.test(url)),false);
+  for (const file of ['index.html','src/app.js','src/deferred-world.js','src/kb3.js','src/practice.js','src/story.js','src/companions.js','src/speech-audio.js']) assert.ok(cached.includes(`${scope}${file}`),file);
 });

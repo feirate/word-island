@@ -57,6 +57,8 @@ const base=process.env.PREVIEW_URL||'http://127.0.0.1:4173';
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   }
   await page.setViewportSize({width:390,height:1000});
+  // Finish the preview's smooth scroll before Chrome captures the full page.
+  await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await page.waitForTimeout(200);
   await page.screenshot({path:path.resolve('design/screenshots/companions-mobile.png'),fullPage:true});
   assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:['eight real 3D grey previews','viewing preserves progress','56-day independent demo','eight clickable house residents and dialogues','unlocked model returns to original colors','offline all-animal model cache','390/768 layouts'],errors}));
   await context.close();

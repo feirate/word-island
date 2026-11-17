@@ -2,17 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createHash,webcrypto} from 'node:crypto';
 
 const scope='https://example.test/word-island/';
 const source=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
-const scripts=new Map(['./assets/audio/precache.js','./assets/companions-precache.js'].map(file=>[file,readFileSync(new URL(`../${file}`,import.meta.url),'utf8')]));
+const scripts=new Map(['./assets/audio/precache.js','./assets/companions-precache.js','./assets/runtime-manifest.js'].map(file=>[file,readFileSync(new URL(`../${file}`,import.meta.url),'utf8')]));
+const manifestSelf={};vm.runInNewContext(scripts.get('./assets/runtime-manifest.js'),{self:manifestSelf});
 const sample=Uint8Array.from({length:128},(_,i)=>i);
+manifestSelf.WORD_ISLAND_RUNTIME.resources=Object.fromEntries(Object.keys(manifestSelf.WORD_ISLAND_RUNTIME.resources).map(path=>[path,createHash('sha256').update(sample).digest('hex')]));
+scripts.set('./assets/runtime-manifest.js',`self.WORD_ISLAND_RUNTIME=${JSON.stringify(manifestSelf.WORD_ISLAND_RUNTIME)};`);
 
 function worker({writeFailure=false,networkStatus=200,cached=false,offline=false}={}){
   const listeners=new Map(),entries=new Map(),lifetime=[],requests=[],writes=[];
   let release;const writeGate=new Promise(resolve=>{release=resolve;});
   const urlOf=request=>typeof request==='string'?request:request.url;
-  if(cached)entries.set(new URL('assets/models/home.glb',scope).href,new Response(sample));
+  if(cached)entries.set(`${new URL('assets/models/home.glb',scope).href}?asset=${manifestSelf.WORD_ISLAND_RUNTIME.resources['assets/models/home.glb']}`,new Response(sample));
   const cache={
     async match(key){return entries.get(urlOf(key))?.clone();},
     async put(key,response){
@@ -22,7 +26,7 @@ function worker({writeFailure=false,networkStatus=200,cached=false,offline=false
     },
   };
   const self={registration:{scope},location:{origin:new URL(scope).origin},addEventListener:(type,handler)=>listeners.set(type,handler)};
-  const context=vm.createContext({self,URL,Request,Response,Headers,caches:{async open(){return cache;}},fetch:async request=>{
+  const context=vm.createContext({self,URL,Request,Response,Headers,crypto:webcrypto,caches:{async open(){return cache;}},fetch:async request=>{
     requests.push(request);if(offline)throw new Error('Network offline');return new Response(sample,{status:networkStatus});
   }});
   context.importScripts=(...files)=>{for(const file of files)vm.runInContext(scripts.get(file),context);};

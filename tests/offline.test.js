@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import {createHash,webcrypto} from 'node:crypto';
 
 const source = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
 const scope = 'https://example.test/word-island/';
@@ -11,10 +12,15 @@ const sample = Uint8Array.from({ length: 10 }, (_, index) => index);
 const importedScripts = new Map([
   ['./assets/audio/precache.js', readFileSync(new URL('../assets/audio/precache.js', import.meta.url), 'utf8')],
   ['./assets/companions-precache.js', readFileSync(new URL('../assets/companions-precache.js', import.meta.url), 'utf8')],
+  ['./assets/runtime-manifest.js', readFileSync(new URL('../assets/runtime-manifest.js', import.meta.url), 'utf8')],
 ]);
 const manifestSelf = {};
 vm.runInNewContext(importedScripts.get('./assets/audio/precache.js'), { self: manifestSelf });
 const bundledAudioFiles = Array.from(manifestSelf.WORD_ISLAND_AUDIO_FILES);
+vm.runInNewContext(importedScripts.get('./assets/runtime-manifest.js'),{self:manifestSelf});
+const fixtureRuntime=manifestSelf.WORD_ISLAND_RUNTIME;
+fixtureRuntime.resources=Object.fromEntries(Object.keys(fixtureRuntime.resources).map(path=>[path,createHash('sha256').update(sample).digest('hex')]));
+importedScripts.set('./assets/runtime-manifest.js',`self.WORD_ISLAND_RUNTIME=${JSON.stringify(fixtureRuntime)};`);
 
 function worker() {
   const listeners = new Map();
@@ -57,7 +63,7 @@ function worker() {
     clients: { async claim() {} }, async skipWaiting() {},
     addEventListener(type, listener) { listeners.set(type, listener); },
   };
-  const context = vm.createContext({ self, caches, fetch, URL, Request, Response, Headers });
+  const context = vm.createContext({ self, caches, fetch, URL, Request, Response, Headers,crypto:webcrypto });
   context.importScripts = (...files) => {
     for (const file of files) {
       assert.ok(importedScripts.has(file), `Unexpected service-worker script: ${file}`);
@@ -71,6 +77,12 @@ function worker() {
       const promises = [];
       listeners.get('install')({ waitUntil(promise) { promises.push(promise); } });
       await Promise.all(promises);
+    },
+    async prepareAudio() {
+      const promises=[];
+      listeners.get('message')({data:{type:'CACHE_LESSON',paths:bundledAudioFiles},ports:[{postMessage(){}}],waitUntil(value){promises.push(value);}});
+      await Promise.all(promises);
+      writes.length=0;
     },
     async request(range, { url = audioUrl, method = 'GET' } = {}) {
       const headers = new Headers();
@@ -88,6 +100,7 @@ function worker() {
 async function preparedWorker() {
   const result = worker();
   await result.install();
+  await result.prepareAudio();
   result.goOffline();
   return result;
 }

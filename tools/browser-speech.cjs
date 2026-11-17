@@ -51,7 +51,7 @@ const observeSpeech=()=>{
     const ready=async()=>{await chooseTestProfile(page);await page.waitForFunction(()=>window.__wordIsland?.world.getDiagnostics().ready,{timeout:30000});await page.locator('#world-loading').waitFor({state:'hidden'});};
     const playCount=()=>page.evaluate(()=>window.__speechTrace.plays.length);
     const trace=()=>page.evaluate(()=>window.__speechTrace.plays);
-    const enter=async skill=>{await page.locator('[data-nav="camp"]').first().click();await page.locator(`[data-task="${skill}"]`).click();await page.locator(skill==='read'?'#record-button':'[data-answer]').first().waitFor();};
+    const enter=async skill=>{await page.locator('[data-nav="camp"]').first().click();await page.locator(`#notebook-content [data-task="${skill}"]`).click();await page.locator(skill==='read'?'#record-button':'[data-answer]').first().waitFor();};
     const clickAction=action=>page.locator(`[data-action="${action}"]`).click();
     const waitStarted=async index=>{
       await page.waitForFunction(index=>{const t=window.__speechTrace,p=t.plays[index];return p?.started&&t.players[p.player].currentTime>0.01;},index);

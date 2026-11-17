@@ -56,8 +56,12 @@ const base=process.env.PREVIEW_URL||'http://127.0.0.1:4173';
   await page.locator(`[data-profile-select="${b.id}"]`).click();await ready();
   assert.equal((await state()).worldPlayerName||await page.evaluate(()=>window.__wordIsland.world.getDiagnostics().playerName),'Lucy');
   await page.locator('#parent-button').click();await page.locator('#prepare-offline').click();await page.waitForFunction(()=>document.querySelector('#offline-detail').textContent.includes('已可离线'));await page.locator('[data-close="parent-dialog"]').click();
-  assert.deepEqual(await page.evaluate(async()=>Promise.all(['src/profiles.js','assets/models/child.glb','assets/models/child-portrait.png'].map(async file=>Boolean(await caches.match(new URL(file,location.href).href))))),[true,true,true],'offline preparation must include the profile module and actual child assets');
-  await context.setOffline(true);await page.reload();await picker.waitFor({state:'visible'});await page.locator(`[data-profile-select="${b.id}"]`).click();await ready();assert.equal((await state()).activeProfile.name,'Lucy');await context.setOffline(false);
+  await context.setOffline(true);
+  assert.deepEqual(await page.evaluate(async()=>{
+   const entry=document.querySelector('script[type="module"][src]').src;
+   return Promise.all([entry,...['assets/models/child.glb','assets/models/child-portrait.png'].map(file=>new URL(file,location.href).href)].map(async url=>{try{const response=await fetch(url);return response.ok&&(await response.arrayBuffer()).byteLength>0;}catch{return false;}}));
+  }),[true,true,true],'offline preparation must serve the real learning entry and complete child assets through the worker');
+  await page.reload();await picker.waitFor({state:'visible'});await page.locator(`[data-profile-select="${b.id}"]`).click();await ready();assert.equal((await state()).activeProfile.name,'Lucy');await context.setOffline(false);
   const other=await context.newPage();await other.goto(base);await other.locator('#profile-dialog').waitFor({state:'visible'});await other.locator(`[data-profile-select="${c.id}"]`).click();
   await other.locator('#user-button').click();await other.locator(`[data-profile-delete="${b.id}"]`).click();await other.locator('#confirm-delete-profile').click();
   await picker.waitFor({state:'visible'});assert.equal((await state()).activeProfile,null,'deleting an active name in another tab must return this tab to the chooser');

@@ -20,7 +20,7 @@ const results=[];
    finally {await context.close();}
   }
   const finish=async(page,state,skill)=>{
-   await page.locator(`[data-task="${skill}"]`).first().click();
+   await page.locator(`#notebook-content [data-task="${skill}"]`).first().click();
    await page.waitForFunction(skill=>{const s=window.__wordIsland.getState();return s.phase===skill&&Boolean(s.activeWordId);},skill);
    for(let count=0;count<10&&(await state()).activeWordId;count++){
     const id=(await state()).activeWordId;
@@ -62,7 +62,7 @@ const results=[];
    assert.equal((await state()).progress.rewardDates.length,1);await page.locator('[data-nav="camp"]').first().click();await page.locator('[data-action="collect"]').click();assert.equal((await state()).progress.rewardDates.length,1);
   });
   await run('daily plan remains stable after a deliberate daily task starts',async({page,state})=>{
-   await page.locator('[data-nav="camp"]').first().click();await page.locator('[data-task="listen"]').click();
+   await page.locator('[data-nav="camp"]').first().click();await page.locator('#notebook-content [data-task="listen"]').click();
    await page.waitForFunction(()=>{const s=window.__wordIsland.getState();return s.phase==='listen'&&Boolean(s.activeWordId);});const original=(await state()).plan;
    await page.locator('[data-action="back-task"]').click();await page.locator('[data-action="open-books"]').first().click();
    const other=page.locator(`[data-unit]:not([data-unit="${original.unitId}"])`).first();const unit=await other.getAttribute('data-unit');await other.click();

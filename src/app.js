@@ -1,5 +1,5 @@
-import { WorldView } from './world.js';
-import { CompanionView } from './companion-view.js';
+import { DeferredWorld } from './deferred-world.js';
+import { lessonAudioFiles, createLessonPreparer, requestPreparation } from './offline-client.js';
 import { COMPANIONS, MAX_REWARD_DAYS, getCompanion, getCompanionJourney, getCompanionState, getClueForReward } from './companions.js';
 import { COURSES, DEFAULT_UNIT_ID, WORDS, PHRASES, getWord, getUnit, getWordsForUnit, getPhrasesForUnit } from './content.js';
 import { createInitialProgress, localDateKey, getDailyPlan, beginDailyAdventure, selectUnit, applyAnswer, applyPracticeAnswer, completeDailyAdventure } from './learning.js';
@@ -10,7 +10,7 @@ import { loadProgress, updateProgress, exportProgress, importProgress, getClip, 
 import { MAX_PROFILES, PROFILE_REGISTRY_KEY, loadProfiles, createProfile, deleteProfile, getProfile, profileStorageKey, withProfileStorageLock } from './profiles.js';
 
 const $ = selector => document.querySelector(selector);
-const APP_VERSION='0.6.4';
+const APP_VERSION='0.7.0';
 const panel = $('#notebook-content');
 let activeProfile=null;
 let profileEpoch=0;
@@ -56,7 +56,15 @@ let speechOverride=null;
 let storyPointerButton=null;
 let selectedCompanionId=getCompanionJourney(realProgress).current?.id||'bunny';
 let companionView=null;
+let companionModuleTask=null;
 let companionPreviewKey=null;
+const lessonPreparer=createLessonPreparer({
+  version:APP_VERSION,
+  prepare:paths=>requestPreparation(activeOfflineWorker(),{type:'CACHE_LESSON',paths}),
+  onPending:()=>{if(!offlinePreparing)$('#offline-status').textContent='正在准备当前单元音频';},
+  onReady:()=>{if(!offlinePreparing)$('#offline-status').textContent='当前单元音频已留在本机';},
+  onFailure:()=>{if(!offlinePreparing)$('#offline-status').textContent='联网学习 · 可准备离线';},
+});
 let rewardCompanionId=null;
 const quietPrompts=new Set();
 
@@ -140,7 +148,7 @@ async function setReadingDone() {
 }
 
 function resetLearningContext() {
-  profileEpoch+=1;stopAudio();
+  profileEpoch+=1;stopAudio();lessonPreparer.reset();
   if(audioUrl){URL.revokeObjectURL(audioUrl);audioUrl=null;}
   demo=false;demoProgress=createInitialProgress();demoReadDays.clear();
   pendingImport=null;pendingImportOwner=null;feedback=null;activeWordId=null;freeWordId=null;freeUnitId=null;phraseIndex=0;
@@ -168,6 +176,7 @@ function showProfileChooser() {
   if(progressBusy){toast('正在收好这一步，请稍等一下。');return;}
   if(microphoneBusy()){toast('先结束录音或等待麦克风请求完成，再切换名字。');return;}
   stopAudio();pendingImport=null;pendingImportOwner=null;
+  companionPreviewKey=null;
   for(const dialog of document.querySelectorAll('dialog[open]'))if(dialog.id!=='profile-dialog')dialog.close();
   $('#profile-error').textContent='';renderProfileList();
   if(!$('#profile-dialog').open)$('#profile-dialog').showModal();
@@ -225,7 +234,7 @@ function showWorldLoading({loaded=0,total=3,label='正在准备小岛…',bytesL
   const loading=$('#world-loading');loading.hidden=false;
   if(loading.dataset.state!=='loading'){
     loading.dataset.state='loading';
-    loading.innerHTML='<span class="loading-seed" aria-hidden="true">🌱</span><strong></strong><span></span><small>首次打开会下载三维场景，慢网时请稍等。</small>';
+    loading.innerHTML='<span class="loading-seed" aria-hidden="true">🌱</span><strong></strong><span></span><small>小岛会继续准备，你可以先开始今天的学习。</small><button type="button" class="button" data-action="start-learning">先开始今日任务 →</button>';
   }
   loading.querySelector('strong').textContent=label;
   const received=bytesLoaded>0?` · 已接收 ${Math.round(bytesLoaded/1024)} KB`:'';
@@ -236,14 +245,14 @@ function showWorldLoading({loaded=0,total=3,label='正在准备小岛…',bytesL
 function showWorldError(error) {
   const loading=$('#world-loading');loading.hidden=false;
   loading.dataset.state='error';
-  loading.innerHTML='<span class="loading-seed" aria-hidden="true">🌱</span><strong>画面还没准备好</strong><span></span><button class="button" type="button" data-action="retry-world">再试一次</button><small></small><details><summary>查看加载信息</summary><pre></pre></details>';
+  loading.innerHTML='<span class="loading-seed" aria-hidden="true">🌱</span><strong>画面还没准备好</strong><span></span><button class="button" type="button" data-action="retry-world">再试一次</button><button class="button" type="button" data-action="start-learning">先开始今日任务 →</button><small></small><details><summary>查看加载信息</summary><pre></pre></details>';
   loading.querySelector('span:last-of-type').textContent=error.message;
   loading.querySelector('small').textContent=`学习记录还在。请保持联网，再试一次。版本 ${APP_VERSION}`;
   loading.querySelector('pre').textContent=JSON.stringify({version:APP_VERSION,...error.details},null,2);
 }
 
 async function retryWorld() {
-  if(!world.renderer||/画面暂时中断|重新打开页面/.test(world.getDiagnostics().error||'')){location.reload();return;}
+  if(/画面暂时中断|重新打开页面/.test(world.getDiagnostics().error||'')){location.reload();return;}
   $('#world-asset-retry').disabled=true;
   try {
     await world.retryLoads();
@@ -253,11 +262,11 @@ async function retryWorld() {
   finally{$('#world-asset-retry').disabled=false;}
 }
 
-const world = new WorldView($('#world-canvas'), {
+const world = new DeferredWorld($('#world-canvas'), {
   onInteract: handleWorldInteraction,
   onLoading:showWorldLoading,
   onReady() {},
-  onSceneReady(){ $('#world-loading').hidden=true; },
+  onSceneReady(){ $('#world-loading').hidden=true;positionSpeech(); },
   onAssetError(){ $('#world-asset-retry').hidden=false;toast('伙伴还在路上，先继续探索吧。稍后可以点“再接伙伴”。'); },
   onFrame: positionSpeech,
   onError:showWorldError,
@@ -352,7 +361,7 @@ async function enterTask(skill, wordId = null, unitId = null) {
   if(speech?.guided)world.resetCamera();
   else world.focusObject(skill === 'listen' ? 'camp.crate' : skill === 'spell' ? 'camp.sign' : 'camp.mailbox');
   if (skill === 'read') loadRecording();
-  if(speech?.guided)bringSceneIntoView();else scrollNotebook();
+  if(speech?.guided&&world.getDiagnostics().sceneReady)bringSceneIntoView();else scrollNotebook();
 }
 
 function clueTrack(count=journey().roundCount) {
@@ -504,6 +513,7 @@ function render() {
   if(phase==='read')preparePrompt(`phrase:${currentPhrase().id}`);
   renderStory();
   speechAvailability();
+  prepareCurrentLesson();
 }
 
 function syncCompanionPreview() {
@@ -512,19 +522,30 @@ function syncCompanionPreview() {
   $('#companion-preview').hidden=!showing;
   $('#ask-hero').hidden=showing;
   world.setActive(!showing&&Boolean(activeProfile)&&!$('#profile-dialog').open);
-  if(!showing){companionView?.setActive(false);$('#companion-loading').hidden=true;return;}
+  if(!showing){companionView?.setActive(false);companionPreviewKey=null;$('#companion-loading').hidden=true;return;}
   if(!companionView) {
-    companionView=new CompanionView($('#companion-preview'));
-    companionView.ready.catch(()=>{});
+    $('#companion-loading').hidden=false;
+    $('#companion-loading').textContent='伙伴正在和你打招呼…';
+    companionModuleTask ||= import('./companion-view.js').then(({CompanionView})=>{
+      companionModuleTask=null;
+      if(page!=='clues'||!activeProfile||$('#profile-dialog').open)return;
+      companionView=new CompanionView($('#companion-preview'));
+      companionView.ready.catch(()=>{});syncCompanionPreview();
+    }).catch(()=>{
+      companionModuleTask=null;
+      if(page==='clues')$('#companion-loading').innerHTML='伙伴暂时还没准备好。<button type="button" class="button" data-action="retry-companion">再看一次</button>';
+    });
+    return;
   }
   companionView.setActive(Boolean(activeProfile)&&!$('#profile-dialog').open);
   const unlocked=progress().companions.includes(selectedCompanionId), key=`${selectedCompanionId}:${unlocked}`;
-  if(key===companionPreviewKey)return;
+  const diagnostics=companionView.getDiagnostics();
+  if(key===companionPreviewKey&&(diagnostics.ready||diagnostics.loadingModels.includes(selectedCompanionId)))return;
   companionPreviewKey=key;
   $('#companion-loading').hidden=false;
   $('#companion-loading').textContent='伙伴正在和你打招呼…';
-  companionView.setCompanion(selectedCompanionId,unlocked).then(()=>{
-    if(companionPreviewKey===key)$('#companion-loading').hidden=true;
+  companionView.setCompanion(selectedCompanionId,unlocked).then(shown=>{
+    if(shown&&companionPreviewKey===key)$('#companion-loading').hidden=true;
   }).catch(()=>{
     if(companionPreviewKey===key){$('#companion-loading').innerHTML='这位伙伴暂时还没准备好。联网后再试一下吧。<button type="button" class="button" data-action="retry-companion">再看一次</button>';}
   });
@@ -844,33 +865,47 @@ function checkImportedAudio(blob) {
 
 function registerOfflineWorker() {
   if(!('serviceWorker' in navigator))return Promise.reject(new Error('这个浏览器暂不支持离线资源缓存。'));
-  offlineRegistrationTask ||= Promise.resolve().then(()=>navigator.serviceWorker.register('./sw.js')).then(registration=>{offlineRegistration=registration;return registration;}).catch(error=>{offlineRegistrationTask=null;throw error;});
+  offlineRegistrationTask ||= Promise.resolve().then(()=>navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'})).then(registration=>{offlineRegistration=registration;return registration;}).catch(error=>{offlineRegistrationTask=null;throw error;});
   return offlineRegistrationTask;
+}
+
+async function activeOfflineWorker() {
+  const registration=await registerOfflineWorker();
+  const worker=registration.installing||registration.waiting||registration.active||(await navigator.serviceWorker.ready).active;
+  if(worker.state==='activated')return worker;
+  return new Promise((resolve,reject)=>{
+    const changed=()=>{
+      if(worker.state==='activated'||worker.state==='redundant'){
+        worker.removeEventListener('statechange',changed);
+        worker.state==='activated'?resolve(worker):reject(new Error('离线程序更新未完成，请保持联网后再试。'));
+      }
+    };
+    worker.addEventListener('statechange',changed);changed();
+  });
+}
+
+function prepareCurrentLesson() {
+  if(!activeProfile||demo||!('serviceWorker' in navigator)||document.hidden)return;
+  const paths=lessonAudioFiles({unitIds:[plan().unitId,selectedUnit().id,freeUnitId].filter(Boolean),wordIds:plan().wordIds});
+  lessonPreparer.prepare(paths);
 }
 
 async function prepareOffline() {
   if(offlinePreparing)return;
   offlinePreparing=true;
   const detail=$('#offline-detail'),button=$('#prepare-offline');button.disabled=true;
-  detail.textContent='正在准备程序和三维场景…';
-  const attempt={active:true};
-  let timeout,channel;
+  detail.textContent='正在准备离线程序…';
   try {
-    const deadline=new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('离线资源准备超时，联网仍可学习；保持联网后可以重试。')),45000);});
-    const preparation=(async()=>{
-      await registerOfflineWorker();
-      const registration=await navigator.serviceWorker.ready;
-      if(!attempt.active)throw new Error('本轮离线准备已结束，请重新尝试。');
-      channel=new MessageChannel();
-      return new Promise(resolve=>{channel.port1.onmessage=event=>resolve(event.data);registration.active.postMessage({type:'CACHE_MODELS'},[channel.port2]);});
-    })();
-    const result=await Promise.race([preparation,deadline]);
-    if(!result.ok)throw new Error('有模型尚未准备好，请保持联网后重新准备。');
+    const result=await requestPreparation(activeOfflineWorker(),{type:'CACHE_MODELS',onProgress:state=>{
+      detail.textContent=`正在准备离线资源：${state.completed} / ${state.total} 个文件。已准备好的文件会保留。`;
+    }});
+    if(result.version!==APP_VERSION)throw new Error('离线程序正在更新，请稍后再准备一次。');
+    if(!result.ok)throw new Error('有资源尚未准备好，已完成的文件会保留；保持联网后可以继续准备。');
     detail.textContent='程序、内置英音、八位伙伴和场景已可离线。自己导入的音频也保存在本机。';
     $('#offline-status').textContent='小岛已准备好离线探索';
     navigator.storage?.persist?.().catch(()=>{});
   } catch(error){detail.textContent=error.message;$('#offline-status').textContent='联网探索 · 可准备离线';if(!offlineRegistration)offlineRegistrationTask=null;}
-  finally{attempt.active=false;clearTimeout(timeout);channel?.port1.close();channel?.port2.close();offlinePreparing=false;button.disabled=false;}
+  finally{offlinePreparing=false;button.disabled=false;}
 }
 
 document.addEventListener('pointerdown',event=>{storyPointerButton=event.target.closest('[data-story-action]');},{capture:true});
@@ -899,6 +934,7 @@ document.addEventListener('click',event=>{
   if(d.answer){answer(d.answer===activeWordId,d.answer);return;}
   if(d.phrase!==undefined){if(microphoneBusy()){toast('先结束录音或等待麦克风请求完成。');return;}stopAudio();phraseIndex=Number(d.phrase);render();loadRecording();return;}
   const actions={
+    'start-learning':()=>enterTask('listen'),
     'open-books':openBooks,
     'switch-profile':showProfileChooser,
     'visit-companion':visitCompanion,
@@ -1016,8 +1052,9 @@ window.addEventListener('storage',event=>{
 });
 render();
 showProfileChooser();
-// Register only after the first room is ready. Full model preparation is an
-// explicit parent action, so it cannot compete with the child's next scene.
-world.ready.then(()=>registerOfflineWorker().catch(()=>{})).catch(()=>{});
+// Installation only caches the small learning shell. Models and other units
+// are prepared on demand, so a slow 3D download cannot block learning/offline setup.
+registerOfflineWorker().catch(()=>{});
+window.addEventListener('online',()=>{lessonPreparer.reset();prepareCurrentLesson();});
 // Read-only inspection surface for browser QA; never uploads or modifies progress.
 window.__wordIsland={world,getState:()=>structuredClone({activeProfile,demo,page,phase,dateKey:today(),progress:progress(),realProgress,plan:plan(),readingDone:readingDone(),activeWordId,phraseId:currentPhrase().id,readingUnitId:readingUnit().id,guide,speech,selectedCompanionId}),getCompanionDiagnostics:()=>companionView?.getDiagnostics()||null,getDiagnostics:()=>world.getDiagnostics()};

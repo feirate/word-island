@@ -35,7 +35,9 @@ const actionable=text=>/超时|无法|不支持|失败|不可用|未能|暂时|�
         assert.equal(await page.locator('#world-loading').isHidden(),true,'offline preparation must not block the online world');
       },()=>{
         const nativeTimeout=window.setTimeout.bind(window);
-        window.setTimeout=(callback,delay,...args)=>nativeTimeout(callback,delay===45000?700:delay,...args);
+        // Registration is covered by the same no-progress budget as transfer.
+        // Accelerate its 30s idle deadline; the independent 300s cap stays later.
+        window.setTimeout=(callback,delay,...args)=>nativeTimeout(callback,delay===30000?700:delay===300000?2200:delay,...args);
         const never=new Promise(()=>{});
         Object.defineProperty(navigator.serviceWorker,'register',{configurable:true,value:()=>never});
         Object.defineProperty(navigator.serviceWorker,'ready',{configurable:true,get:()=>never});
@@ -48,7 +50,7 @@ const actionable=text=>/超时|无法|不支持|失败|不可用|未能|暂时|�
         assert(actionable(await page.locator('#offline-detail').innerText()));
       },()=>{
         const nativeTimeout=window.setTimeout.bind(window);
-        window.setTimeout=(callback,delay,...args)=>nativeTimeout(callback,delay===45000?700:delay,...args);
+        window.setTimeout=(callback,delay,...args)=>nativeTimeout(callback,delay===30000?700:delay===300000?2200:delay,...args);
         const never=new Promise(()=>{});
         Object.defineProperty(navigator.serviceWorker,'register',{configurable:true,value:()=>Promise.resolve({active:null})});
         Object.defineProperty(navigator.serviceWorker,'ready',{configurable:true,get:()=>never});
@@ -95,6 +97,6 @@ const actionable=text=>/超时|无法|不支持|失败|不可用|未能|暂时|�
         });
       }}),
     ]);
-    console.log(JSON.stringify({results,fixtureModes:['SIMULATED unavailable worker registration/activation; exact 45000 ms deadline accelerated to 700 ms','SIMULATED active-worker CacheStorage denial with REAL local network fallback','SIMULATED hanging preview request with REAL GLB retry; constructor timeout 600 ms'],mobileEmulationOnly:true,url:base}));
+    console.log(JSON.stringify({results,fixtureModes:['SIMULATED unavailable worker registration/activation; 30000 ms idle deadline accelerated to 700 ms, independent 300000 ms cap to 2200 ms','SIMULATED active-worker CacheStorage denial with REAL local network fallback','SIMULATED hanging preview request with REAL GLB retry; constructor timeout 600 ms'],mobileEmulationOnly:true,url:base}));
   }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -24,6 +24,13 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v6
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install build tools
+        run: npm ci
       - name: Verify learning and storage behavior
         run: |
           node --test tests/*.test.js
@@ -32,19 +39,7 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Prepare the static site
-        shell: bash
-        run: |
-          mkdir -p _site
-          cp index.html manifest.webmanifest sw.js _site/
-          cp _site/index.html _site/start.html
-          cp -R src vendor icons _site/
-          find assets -type f \( \
-            -name '*.glb' -o -name '*.gltf' -o -name '*.bin' -o \
-            -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.js' -o \
-            -name '*.webp' -o -name '*.svg' -o -name '*.ktx2' -o \
-            -name '*.mp3' -o -name '*.m4a' -o -name '*.wav' -o \
-            -name '*.ogg' -o -name '*.json' \
-          \) -exec cp --parents -t _site {} +
+        run: npm run build
       - name: Upload the static site
         uses: actions/upload-pages-artifact@v4
         with:

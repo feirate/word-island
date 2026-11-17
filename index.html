@@ -11,7 +11,7 @@
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./src/styles.css?v=0.6.4">
+  <link rel="stylesheet" href="./src/styles.css?v=0.7.0">
 </head>
 <body>
   <div id="app">
@@ -32,7 +32,7 @@
           <div id="world-canvas" aria-label="可以轻点物件的三维场景"></div>
           <div id="companion-preview" aria-label="可旋转查看的三维伙伴" hidden></div>
           <div class="companion-loading" id="companion-loading" role="status" hidden>伙伴正在和你打招呼…</div>
-          <div class="world-loading" id="world-loading"><span class="loading-seed" aria-hidden="true">🌱</span><strong>小岛正在醒来…</strong><span>为你摆好小屋和冒险营地</span></div>
+          <div class="world-loading" id="world-loading"><span class="loading-seed" aria-hidden="true">🌱</span><strong>小岛正在醒来…</strong><span>为你摆好小屋和冒险营地</span><button type="button" class="button" data-action="start-learning">先开始今日任务 →</button></div>
           <div class="world-badge"><span class="status-dot"></span><span id="world-location">暖暖小屋</span></div>
           <section class="character-speech" id="character-speech" aria-label="人物对话" hidden></section>
           <div class="world-controls"><div class="world-control-buttons"><button type="button" id="camera-reset" aria-label="回到默认视角">↺ 归位</button><button type="button" id="ask-hero">问问芽芽</button><button type="button" id="world-asset-retry" data-action="retry-world" hidden>再接伙伴</button></div><span>轻点物件 · 拖动看看四周</span></div>
@@ -56,7 +56,7 @@
   <dialog id="parent-dialog" aria-labelledby="parent-title"><div class="dialog-header"><div><span class="eyebrow">给家长的小工具</span><h2 id="parent-title">把成长留在自己手里</h2></div><button type="button" class="icon-button" data-close="parent-dialog" aria-label="关闭家长入口">×</button></div><div class="dialog-body">
     <section class="setting-section"><h3 id="parent-profile-title">当前用户的学习进度</h3><p>导出、导入只针对当前名字。进度与录音保存在当前浏览器，换设备时可以导出、导入进度文件。录音与示范音频不包含在进度文件中；未领取线索的朗读状态换设备后需重新确认。</p><div class="button-row"><button type="button" class="button primary" id="export-progress">导出真实进度</button><label class="button">导入进度文件<input id="import-progress" type="file" accept=".json,application/json" hidden></label><button type="button" class="button subtle" id="export-backup" hidden>导出上次导入前备份</button><button type="button" class="button" data-action="switch-profile">切换或管理名字</button></div></section>
     <section class="setting-section"><h3>本地示范音频 · 本机用户共用</h3><p>内置 Daniel 英音合成示范，非教材原音，准备资源后可直接离线播放。也可优先使用自己导入的教材示范音：单词文件命名为 milk.mp3、rice.m4a 等；短句使用 phrase-rice-please.mp3 等名称。单条不超过 15 MiB。孩子的个人跟读录音分别保存。</p><label class="button">导入共用教材音频<input id="import-audio" type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.webm" multiple hidden></label><p class="setting-feedback" id="audio-import-status" aria-live="polite"></p></section>
-    <section class="setting-section"><h3>离线准备</h3><p>联网打开后，准备好程序、内置英音与全部伙伴模型就能离线探索、练习。导入的音频也保存在本机，不需要下载系统声线。</p><button type="button" class="button" id="prepare-offline">准备离线资源</button><p class="setting-feedback" id="offline-detail" aria-live="polite"></p></section>
+    <section class="setting-section"><h3>离线准备</h3><p>当前单元音频会按需留在本机。点击下方按钮，可以准备整套音频、场景和八位伙伴，完成后再离线使用。中断后可继续，已完成的文件不会重复下载。</p><button type="button" class="button" id="prepare-offline">准备离线资源</button><p class="setting-feedback" id="offline-detail" aria-live="polite"></p></section>
     <section class="setting-section"><h3>陪孩子试玩</h3><p>演示存档与真实存档独立。可以快进到伙伴入住，看看孩子是否喜欢这个世界。</p><div class="button-row"><button type="button" class="button" data-action="start-demo">从第一条线索开始</button><button type="button" class="button" data-action="demo-ending">预览团团入住</button><button type="button" class="button" data-action="demo-all">预览八位伙伴入住</button></div></section>
     <div class="privacy-note">没有账号、广告、排行榜或在线语音识别。本站公开提供程序与原创模型；孩子的学习记录和录音不会被程序上传。</div>
   </div></dialog>
@@ -64,7 +64,7 @@
   <dialog id="reward-dialog" aria-labelledby="reward-title"><div class="reward-art" aria-hidden="true" id="reward-emoji">🐾</div><span class="eyebrow">今天也向前走了一点</span><h2 id="reward-title"></h2><p id="reward-description"></p><div class="reward-dots" id="reward-dots"></div><button type="button" class="button primary" id="reward-continue">带回小屋 →</button></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <noscript>词遇岛需要启用 JavaScript 才能展示三维场景和保存学习进度。</noscript>
-  <script type="importmap">{"imports":{"three":"./vendor/three.module.js?v=0.6.4","./src/app.js":"./src/app.js?v=0.6.4","./src/companion-view.js":"./src/companion-view.js?v=0.6.4","./src/companions.js":"./src/companions.js?v=0.6.4","./src/content.js":"./src/content.js?v=0.6.4","./src/kb3.js":"./src/kb3.js?v=0.6.4","./src/learning.js":"./src/learning.js?v=0.6.4","./src/model-loader.js":"./src/model-loader.js?v=0.6.4","./src/practice.js":"./src/practice.js?v=0.6.4","./src/profiles.js":"./src/profiles.js?v=0.6.4","./src/speech-audio.js":"./src/speech-audio.js?v=0.6.4","./src/storage.js":"./src/storage.js?v=0.6.4","./src/story.js":"./src/story.js?v=0.6.4","./src/world.js":"./src/world.js?v=0.6.4","./vendor/OrbitControls.js":"./vendor/OrbitControls.js?v=0.6.4","./vendor/loaders/GLTFLoader.js":"./vendor/loaders/GLTFLoader.js?v=0.6.4","./vendor/three.core.js":"./vendor/three.core.js?v=0.6.4","./vendor/three.module.js":"./vendor/three.module.js?v=0.6.4","./vendor/utils/BufferGeometryUtils.js":"./vendor/utils/BufferGeometryUtils.js?v=0.6.4"}}</script>
-  <script type="module" src="./src/app.js?v=0.6.4"></script>
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js?v=0.7.0","./src/app.js":"./src/app.js?v=0.7.0","./src/companion-view.js":"./src/companion-view.js?v=0.7.0","./src/companions.js":"./src/companions.js?v=0.7.0","./src/content.js":"./src/content.js?v=0.7.0","./src/kb3.js":"./src/kb3.js?v=0.7.0","./src/learning.js":"./src/learning.js?v=0.7.0","./src/model-loader.js":"./src/model-loader.js?v=0.7.0","./src/practice.js":"./src/practice.js?v=0.7.0","./src/profiles.js":"./src/profiles.js?v=0.7.0","./src/speech-audio.js":"./src/speech-audio.js?v=0.7.0","./src/storage.js":"./src/storage.js?v=0.7.0","./src/story.js":"./src/story.js?v=0.7.0","./src/world.js":"./src/world.js?v=0.7.0","./vendor/OrbitControls.js":"./vendor/OrbitControls.js?v=0.7.0","./vendor/loaders/GLTFLoader.js":"./vendor/loaders/GLTFLoader.js?v=0.7.0","./vendor/three.core.js":"./vendor/three.core.js?v=0.7.0","./vendor/three.module.js":"./vendor/three.module.js?v=0.7.0","./vendor/utils/BufferGeometryUtils.js":"./vendor/utils/BufferGeometryUtils.js?v=0.7.0","./src/deferred-world.js":"./src/deferred-world.js?v=0.7.0","./src/offline-client.js":"./src/offline-client.js?v=0.7.0","./src/render-policy.js":"./src/render-policy.js?v=0.7.0"}}</script>
+  <script type="module" src="./src/app.js?v=0.7.0"></script>
 </body>
 </html>

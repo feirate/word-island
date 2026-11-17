@@ -2,6 +2,7 @@ import * as THREE from '../vendor/three.module.js';
 import { OrbitControls } from '../vendor/OrbitControls.js';
 import { loadModel } from './model-loader.js';
 import { COMPANIONS } from './companions.js';
+import { createRenderPolicy, renderPixelRatio, renderIntervalMs } from './render-policy.js';
 
 const SCENES = {
   home: {
@@ -52,6 +53,10 @@ export class WorldView {
     this._disposed = false;
     this._loaded = false;
     this._raf = 0;
+    this._frameTimer = 0;
+    this._lastDrawAt = -Infinity;
+    this._lastActivityAt = performance.now();
+    this._shadowDirty = true;
     this._elapsed = 0;
     this._lastNow = 0;
     this._lastInteractionAt = -Infinity;
@@ -80,8 +85,12 @@ export class WorldView {
   async _initialize() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color('#e5ede3');
+    this._renderPolicy = createRenderPolicy({
+      coarsePointer: window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0,
+      devicePixelRatio: window.devicePixelRatio,
+    });
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    this.renderer.setPixelRatio(this._renderPolicy.maxPixelRatio);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
@@ -107,7 +116,7 @@ export class WorldView {
     const key = new THREE.DirectionalLight('#fff0cf', 2.7);
     key.position.set(-3, 9, 7);
     key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.mapSize.set(this._renderPolicy.shadowSize, this._renderPolicy.shadowSize);
     Object.assign(key.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 0.5, far: 30 });
     key.shadow.normalBias = 0.035;
     key.shadow.bias = -0.00015;
@@ -124,6 +133,8 @@ export class WorldView {
         this._celebration = null;
         for (const actor of this._actors) actor.mixer?.setTime(0);
       }
+      this._shadowDirty = true;
+      this._lastDrawAt = -Infinity;
       this._invalidate();
     };
     this._motionQuery.addEventListener('change', this._motionChanged);
@@ -139,9 +150,11 @@ export class WorldView {
       this._viewportObserver.observe(this.container);
     }
     this._controlChanged = () => this._invalidate();
-    this._controlStarted = () => { this._cameraTween = null; };
+    this._controlStarted = () => { this._cameraTween = null; this._wake(); };
+    this._controlEnded = () => this._wake();
     this.controls.addEventListener('change', this._controlChanged);
     this.controls.addEventListener('start', this._controlStarted);
+    this.controls.addEventListener('end', this._controlEnded);
     this._listeners = {
       pointerdown: (event) => this._onPointerDown(event),
       pointermove: (event) => this._onPointerMove(event),
@@ -152,7 +165,9 @@ export class WorldView {
         this._contextLost = true;
         this._error = '三维画面暂时中断，请重新打开页面。';
         cancelAnimationFrame(this._raf);
+        clearTimeout(this._frameTimer);
         this._raf = 0;
+        this._frameTimer = 0;
         this.onError(new Error(this._error));
       },
     };
@@ -447,6 +462,7 @@ export class WorldView {
   }
 
   _placeActors() {
+    this._shadowDirty = true;
     for(const actor of this._actors) {
       if(actor.name==='hero'||actor.name==='guide') {actor.group.position.fromArray(SCENES[this.currentScene][actor.name]);actor.group.visible=this._sceneReady;continue;}
       const pet=COMPANIONS.find(item=>item.id===actor.name);
@@ -482,12 +498,14 @@ export class WorldView {
     this.camera.top = width / aspect / 2;
     this.camera.bottom = -width / aspect / 2;
     this.camera.updateProjectionMatrix();
+    this.renderer.setPixelRatio(renderPixelRatio(this._renderPolicy, rect.width, rect.height));
     this.renderer.setSize(rect.width, rect.height, false);
     this._invalidate();
   }
 
   resetCamera() {
     if (!this.camera || this._disposed) return;
+    this._wake();
     const config = SCENES[this.currentScene];
     this._cameraTween = null;
     this.camera.position.fromArray(config.camera);
@@ -507,6 +525,7 @@ export class WorldView {
   focusObject(id) {
     const object = this._interactionNodes.get(id);
     if (!object || !this._isVisible(object) || this._disposed) return false;
+    this._wake();
     this.scene.updateMatrixWorld(true);
     const target = new THREE.Box3().setFromObject(object).getCenter(new THREE.Vector3());
     const offset = this.camera.position.clone().sub(this.controls.target);
@@ -521,6 +540,7 @@ export class WorldView {
 
   celebrate() {
     if (this._disposed || this._celebration) return;
+    this._wake();
     if (this._reducedMotion) { this._invalidate(); return; }
     this._celebration = { start: this._elapsed, duration: 1.6 };
     this._invalidate();
@@ -596,6 +616,7 @@ export class WorldView {
 
   _onPointerDown(event) {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
+    this._wake();
     const multi = this._pointers.size > 0;
     if (multi) for (const pointer of this._pointers.values()) pointer.multi = true;
     this._pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, moved: false, multi });
@@ -603,12 +624,16 @@ export class WorldView {
 
   _onPointerMove(event) {
     const pointer = this._pointers.get(event.pointerId);
-    if (pointer && Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 8) pointer.moved = true;
+    if (pointer) {
+      this._wake();
+      if (Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 8) pointer.moved = true;
+    }
   }
 
   _onPointerUp(event) {
     const pointer = this._pointers.get(event.pointerId);
     this._pointers.delete(event.pointerId);
+    if (pointer) this._wake();
     if (!pointer || pointer.moved || pointer.multi || Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) > 8) return;
     const now = performance.now();
     if (now - this._lastInteractionAt < 450 || this._interactionBusy) return;
@@ -631,8 +656,11 @@ export class WorldView {
   _syncVisibility() {
     if (this._disposed) return;
     this._lastNow = 0;
+    this._lastDrawAt = -Infinity;
     cancelAnimationFrame(this._raf);
+    clearTimeout(this._frameTimer);
     this._raf = 0;
+    this._frameTimer = 0;
     const now = performance.now();
     if (!this._active || document.hidden || !this._inViewport) {
       this._pausedAt ??= now;
@@ -645,18 +673,40 @@ export class WorldView {
     this._pausedAt = null;
     this._measuredAt = now;
     this._frames = 0;
+    this._lastActivityAt = now;
     this._invalidate();
   }
 
+  _wake() {
+    this._lastActivityAt = performance.now();
+    clearTimeout(this._frameTimer);
+    this._frameTimer = 0;
+    this._invalidate();
+  }
+
+  _frameInterval(now) {
+    return renderIntervalMs(this._renderPolicy, { now, lastInteractionAt: this._lastActivityAt,
+      busy: Boolean(this._pointers.size || this._cameraTween || this._celebration) });
+  }
+
   _invalidate() {
-    if (!this._canRender() || this._raf) return;
-    this._raf = requestAnimationFrame((now) => this._frame(now));
+    if (!this._canRender() || this._raf || this._frameTimer) return;
+    const now = performance.now();
+    const delay = this._reducedMotion ? 0 : this._lastDrawAt + this._frameInterval(now) - now - 4;
+    const requestFrame = () => {
+      this._frameTimer = 0;
+      if (this._canRender()) this._raf = requestAnimationFrame(time => this._frame(time));
+    };
+    if (delay > 0) this._frameTimer = setTimeout(requestFrame, delay);
+    else requestFrame();
   }
 
   _frame(now) {
     this._raf = 0;
     if (!this._canRender()) return;
-    const delta = this._lastNow ? Math.min((now - this._lastNow) / 1000, 0.05) : 0;
+    if (!this._reducedMotion && now - this._lastDrawAt + 0.5 < this._frameInterval(now)) { this._invalidate(); return; }
+    this._lastDrawAt = now;
+    const delta = this._lastNow ? Math.min((now - this._lastNow) / 1000, 0.1) : 0;
     this._lastNow = now;
     this._elapsed += delta;
     const celebration = this._celebration;
@@ -690,9 +740,10 @@ export class WorldView {
       if (t === 1) this._cameraTween = null;
     }
     this.controls.update();
-    if (now - this._lastShadowAt > 100 || this._reducedMotion) {
+    if (this._shadowDirty || (!this._reducedMotion && now - this._lastShadowAt >= this._renderPolicy.shadowIntervalMs)) {
       this.renderer.shadowMap.needsUpdate = true;
       this._lastShadowAt = now;
+      this._shadowDirty = false;
     }
     this.renderer.render(this.scene, this.camera);
     this.onFrame(this);
@@ -712,6 +763,8 @@ export class WorldView {
       assetLoadStates: Object.fromEntries([...this._assetLoadStates].map(([id,state]) => [id,{ label: ASSET_LABELS[id], ...state }])),
       interactions: [...this._interactionNodes.keys()], companionUnlocked: this._unlocked,unlockedCompanions:[...this._unlockedIds],active:this._active,playerName:this._playerName,
       reducedMotion: this._reducedMotion, visibleInViewport: this._inViewport, error: this._error || null, ...this._stats,
+      renderBudget: { pixelRatio: this.renderer?.getPixelRatio(), targetFps: this._reducedMotion ? 0 : Math.round(1000 / this._frameInterval(performance.now())),
+        shadowSize: this._renderPolicy?.shadowSize },
       actors: this._actors.map((actor) => ({ name: actor.name, modelAsset:actor.modelAsset, displayName:actor.displayName, visible: actor.group.visible,
         position: actor.group.position.toArray(), scale: actor.model.scale.toArray(),
         headRotation: actor.head?.quaternion.toArray() || null, animationTime: actor.mixer?.time || 0 })) };
@@ -736,7 +789,9 @@ export class WorldView {
     this._loadQueue = [];
     this._assetTasks.clear();
     cancelAnimationFrame(this._raf);
+    clearTimeout(this._frameTimer);
     this._raf = 0;
+    this._frameTimer = 0;
     this._lastNow = 0;
     this._resizeObserver?.disconnect();
     this._viewportObserver?.disconnect();

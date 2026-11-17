@@ -6,7 +6,7 @@ import vm from 'node:vm';
 const scope='https://example.test/word-island/';
 const source=readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 const version=/const VERSION = 'v([^']+)';/.exec(source)[1];
-const scripts=new Map(['./assets/audio/precache.js','./assets/companions-precache.js'].map(file=>[file,readFileSync(new URL(`../${file}`,import.meta.url),'utf8')]));
+const scripts=new Map(['./assets/audio/precache.js','./assets/companions-precache.js','./assets/runtime-manifest.js'].map(file=>[file,readFileSync(new URL(`../${file}`,import.meta.url),'utf8')]));
 
 function worker({offline=false,networkStatus=200,cacheDenied=false,holdWrites=false}={}){
   const entries=new Map(),requests=[],lifetime=[],writes=[],listeners=new Map();
