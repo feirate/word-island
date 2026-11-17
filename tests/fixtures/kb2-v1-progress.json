@@ -1,0 +1,993 @@
+{
+  "version": 1,
+  "courseId": "kb2-u6",
+  "words": {
+    "milk": {
+      "listen": {
+        "attempts": 5,
+        "correct": 4,
+        "streak": 3,
+        "due": "2026-10-16",
+        "lastDate": "2026-10-09"
+      },
+      "spell": {
+        "attempts": 4,
+        "correct": 4,
+        "streak": 4,
+        "due": "2026-10-23",
+        "lastDate": "2026-10-09"
+      }
+    },
+    "rice": {
+      "listen": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-14",
+        "lastDate": "2026-10-07"
+      },
+      "spell": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-14",
+        "lastDate": "2026-10-07"
+      }
+    },
+    "chicken": {
+      "listen": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-14",
+        "lastDate": "2026-10-07"
+      },
+      "spell": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-14",
+        "lastDate": "2026-10-07"
+      }
+    },
+    "fish": {
+      "listen": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-16",
+        "lastDate": "2026-10-09"
+      },
+      "spell": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-16",
+        "lastDate": "2026-10-09"
+      }
+    },
+    "chips": {
+      "listen": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-16",
+        "lastDate": "2026-10-09"
+      },
+      "spell": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-16",
+        "lastDate": "2026-10-09"
+      }
+    },
+    "fruit": {
+      "listen": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-18",
+        "lastDate": "2026-10-11"
+      },
+      "spell": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-18",
+        "lastDate": "2026-10-11"
+      }
+    },
+    "meat": {
+      "listen": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-18",
+        "lastDate": "2026-10-11"
+      },
+      "spell": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-18",
+        "lastDate": "2026-10-11"
+      }
+    },
+    "breakfast": {
+      "listen": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-20",
+        "lastDate": "2026-10-13"
+      },
+      "spell": {
+        "attempts": 3,
+        "correct": 3,
+        "streak": 3,
+        "due": "2026-10-20",
+        "lastDate": "2026-10-13"
+      }
+    },
+    "lunch": {
+      "listen": {
+        "attempts": 2,
+        "correct": 2,
+        "streak": 2,
+        "due": "2026-10-14",
+        "lastDate": "2026-10-11"
+      },
+      "spell": {
+        "attempts": 2,
+        "correct": 2,
+        "streak": 2,
+        "due": "2026-10-14",
+        "lastDate": "2026-10-11"
+      }
+    },
+    "dinner": {
+      "listen": {
+        "attempts": 2,
+        "correct": 2,
+        "streak": 2,
+        "due": "2026-10-16",
+        "lastDate": "2026-10-13"
+      },
+      "spell": {
+        "attempts": 2,
+        "correct": 2,
+        "streak": 2,
+        "due": "2026-10-16",
+        "lastDate": "2026-10-13"
+      }
+    }
+  },
+  "days": {
+    "2026-10-01": {
+      "plan": {
+        "dateKey": "2026-10-01",
+        "newWordIds": [
+          "milk",
+          "rice",
+          "chicken"
+        ],
+        "reviewWordIds": [],
+        "wordIds": [
+          "milk",
+          "rice",
+          "chicken"
+        ],
+        "required": [
+          {
+            "wordId": "milk",
+            "skill": "listen"
+          },
+          {
+            "wordId": "milk",
+            "skill": "spell"
+          },
+          {
+            "wordId": "rice",
+            "skill": "listen"
+          },
+          {
+            "wordId": "rice",
+            "skill": "spell"
+          },
+          {
+            "wordId": "chicken",
+            "skill": "listen"
+          },
+          {
+            "wordId": "chicken",
+            "skill": "spell"
+          }
+        ],
+        "phraseId": "milk-breakfast"
+      },
+      "answers": {
+        "milk": {
+          "listen": {
+            "attempts": 2,
+            "completed": true,
+            "usedHint": false,
+            "hadError": true
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "rice": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "chicken": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        }
+      },
+      "completed": true
+    },
+    "2026-10-03": {
+      "plan": {
+        "dateKey": "2026-10-03",
+        "newWordIds": [
+          "fish",
+          "chips"
+        ],
+        "reviewWordIds": [
+          "milk",
+          "rice",
+          "chicken"
+        ],
+        "wordIds": [
+          "milk",
+          "rice",
+          "chicken",
+          "fish",
+          "chips"
+        ],
+        "required": [
+          {
+            "wordId": "milk",
+            "skill": "listen"
+          },
+          {
+            "wordId": "milk",
+            "skill": "spell"
+          },
+          {
+            "wordId": "rice",
+            "skill": "listen"
+          },
+          {
+            "wordId": "rice",
+            "skill": "spell"
+          },
+          {
+            "wordId": "chicken",
+            "skill": "listen"
+          },
+          {
+            "wordId": "chicken",
+            "skill": "spell"
+          },
+          {
+            "wordId": "fish",
+            "skill": "listen"
+          },
+          {
+            "wordId": "fish",
+            "skill": "spell"
+          },
+          {
+            "wordId": "chips",
+            "skill": "listen"
+          },
+          {
+            "wordId": "chips",
+            "skill": "spell"
+          }
+        ],
+        "phraseId": "milk-breakfast"
+      },
+      "answers": {
+        "milk": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "rice": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "chicken": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "fish": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "chips": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        }
+      },
+      "completed": true
+    },
+    "2026-10-05": {
+      "plan": {
+        "dateKey": "2026-10-05",
+        "newWordIds": [
+          "fruit",
+          "meat"
+        ],
+        "reviewWordIds": [
+          "milk",
+          "fish",
+          "chips"
+        ],
+        "wordIds": [
+          "milk",
+          "fish",
+          "chips",
+          "fruit",
+          "meat"
+        ],
+        "required": [
+          {
+            "wordId": "milk",
+            "skill": "listen"
+          },
+          {
+            "wordId": "milk",
+            "skill": "spell"
+          },
+          {
+            "wordId": "fish",
+            "skill": "listen"
+          },
+          {
+            "wordId": "fish",
+            "skill": "spell"
+          },
+          {
+            "wordId": "chips",
+            "skill": "listen"
+          },
+          {
+            "wordId": "chips",
+            "skill": "spell"
+          },
+          {
+            "wordId": "fruit",
+            "skill": "listen"
+          },
+          {
+            "wordId": "fruit",
+            "skill": "spell"
+          },
+          {
+            "wordId": "meat",
+            "skill": "listen"
+          },
+          {
+            "wordId": "meat",
+            "skill": "spell"
+          }
+        ],
+        "phraseId": "milk-breakfast"
+      },
+      "answers": {
+        "milk": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "fish": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "chips": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "fruit": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "meat": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        }
+      },
+      "completed": true
+    },
+    "2026-10-07": {
+      "plan": {
+        "dateKey": "2026-10-07",
+        "newWordIds": [
+          "breakfast"
+        ],
+        "reviewWordIds": [
+          "rice",
+          "chicken",
+          "fruit",
+          "meat"
+        ],
+        "wordIds": [
+          "rice",
+          "chicken",
+          "fruit",
+          "meat",
+          "breakfast"
+        ],
+        "required": [
+          {
+            "wordId": "rice",
+            "skill": "listen"
+          },
+          {
+            "wordId": "rice",
+            "skill": "spell"
+          },
+          {
+            "wordId": "chicken",
+            "skill": "listen"
+          },
+          {
+            "wordId": "chicken",
+            "skill": "spell"
+          },
+          {
+            "wordId": "fruit",
+            "skill": "listen"
+          },
+          {
+            "wordId": "fruit",
+            "skill": "spell"
+          },
+          {
+            "wordId": "meat",
+            "skill": "listen"
+          },
+          {
+            "wordId": "meat",
+            "skill": "spell"
+          },
+          {
+            "wordId": "breakfast",
+            "skill": "listen"
+          },
+          {
+            "wordId": "breakfast",
+            "skill": "spell"
+          }
+        ],
+        "phraseId": "milk-breakfast"
+      },
+      "answers": {
+        "rice": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "chicken": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "fruit": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "meat": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "breakfast": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        }
+      },
+      "completed": true
+    },
+    "2026-10-09": {
+      "plan": {
+        "dateKey": "2026-10-09",
+        "newWordIds": [
+          "lunch"
+        ],
+        "reviewWordIds": [
+          "milk",
+          "fish",
+          "chips",
+          "breakfast"
+        ],
+        "wordIds": [
+          "milk",
+          "fish",
+          "chips",
+          "breakfast",
+          "lunch"
+        ],
+        "required": [
+          {
+            "wordId": "milk",
+            "skill": "listen"
+          },
+          {
+            "wordId": "milk",
+            "skill": "spell"
+          },
+          {
+            "wordId": "fish",
+            "skill": "listen"
+          },
+          {
+            "wordId": "fish",
+            "skill": "spell"
+          },
+          {
+            "wordId": "chips",
+            "skill": "listen"
+          },
+          {
+            "wordId": "chips",
+            "skill": "spell"
+          },
+          {
+            "wordId": "breakfast",
+            "skill": "listen"
+          },
+          {
+            "wordId": "breakfast",
+            "skill": "spell"
+          },
+          {
+            "wordId": "lunch",
+            "skill": "listen"
+          },
+          {
+            "wordId": "lunch",
+            "skill": "spell"
+          }
+        ],
+        "phraseId": "milk-breakfast"
+      },
+      "answers": {
+        "milk": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "fish": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "chips": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "breakfast": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "lunch": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        }
+      },
+      "completed": true
+    },
+    "2026-10-11": {
+      "plan": {
+        "dateKey": "2026-10-11",
+        "newWordIds": [
+          "dinner"
+        ],
+        "reviewWordIds": [
+          "fruit",
+          "meat",
+          "lunch"
+        ],
+        "wordIds": [
+          "fruit",
+          "meat",
+          "lunch",
+          "dinner"
+        ],
+        "required": [
+          {
+            "wordId": "fruit",
+            "skill": "listen"
+          },
+          {
+            "wordId": "fruit",
+            "skill": "spell"
+          },
+          {
+            "wordId": "meat",
+            "skill": "listen"
+          },
+          {
+            "wordId": "meat",
+            "skill": "spell"
+          },
+          {
+            "wordId": "lunch",
+            "skill": "listen"
+          },
+          {
+            "wordId": "lunch",
+            "skill": "spell"
+          },
+          {
+            "wordId": "dinner",
+            "skill": "listen"
+          },
+          {
+            "wordId": "dinner",
+            "skill": "spell"
+          }
+        ],
+        "phraseId": "milk-breakfast"
+      },
+      "answers": {
+        "fruit": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "meat": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "lunch": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "dinner": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        }
+      },
+      "completed": true
+    },
+    "2026-10-13": {
+      "plan": {
+        "dateKey": "2026-10-13",
+        "newWordIds": [],
+        "reviewWordIds": [
+          "breakfast",
+          "dinner"
+        ],
+        "wordIds": [
+          "breakfast",
+          "dinner"
+        ],
+        "required": [
+          {
+            "wordId": "breakfast",
+            "skill": "listen"
+          },
+          {
+            "wordId": "breakfast",
+            "skill": "spell"
+          },
+          {
+            "wordId": "dinner",
+            "skill": "listen"
+          },
+          {
+            "wordId": "dinner",
+            "skill": "spell"
+          }
+        ],
+        "phraseId": "milk-breakfast"
+      },
+      "answers": {
+        "breakfast": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        },
+        "dinner": {
+          "listen": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          },
+          "spell": {
+            "attempts": 1,
+            "completed": true,
+            "usedHint": false,
+            "hadError": false
+          }
+        }
+      },
+      "completed": true
+    }
+  },
+  "rewardDates": [
+    "2026-10-01",
+    "2026-10-03",
+    "2026-10-05",
+    "2026-10-07",
+    "2026-10-09",
+    "2026-10-11",
+    "2026-10-13"
+  ],
+  "companions": [
+    "bunny"
+  ]
+}

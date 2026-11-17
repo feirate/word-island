@@ -1,12 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const source = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
 const scope = 'https://example.test/word-island/';
 const audioUrl = `${scope}assets/audio/word-milk.m4a`;
 const sample = Uint8Array.from({ length: 10 }, (_, index) => index);
+const importedScripts = new Map([
+  ['./assets/audio/precache.js', readFileSync(new URL('../assets/audio/precache.js', import.meta.url), 'utf8')],
+  ['./assets/companions-precache.js', readFileSync(new URL('../assets/companions-precache.js', import.meta.url), 'utf8')],
+]);
+const manifestSelf = {};
+vm.runInNewContext(importedScripts.get('./assets/audio/precache.js'), { self: manifestSelf });
+const bundledAudioFiles = Array.from(manifestSelf.WORD_ISLAND_AUDIO_FILES);
 
 function worker() {
   const listeners = new Map();
@@ -49,7 +57,14 @@ function worker() {
     clients: { async claim() {} }, async skipWaiting() {},
     addEventListener(type, listener) { listeners.set(type, listener); },
   };
-  vm.runInNewContext(source, { self, caches, fetch, URL, Request, Response, Headers });
+  const context = vm.createContext({ self, caches, fetch, URL, Request, Response, Headers });
+  context.importScripts = (...files) => {
+    for (const file of files) {
+      assert.ok(importedScripts.has(file), `Unexpected service-worker script: ${file}`);
+      vm.runInContext(importedScripts.get(file), context);
+    }
+  };
+  vm.runInContext(source, context);
   return {
     requests, writes, buckets,
     async install() {
@@ -165,7 +180,7 @@ test('media range handling excludes foreign URLs, uploads, user audio and GLB re
 test('every pre-cached built-in audio uses the same range behavior, retaining full-file reads', async () => {
   const sw = await preparedWorker();
   const urls = sw.requests.map((request) => request.url).filter((url) => new URL(url).pathname.endsWith('.m4a'));
-  assert.equal(urls.length, 13);
+  assert.deepEqual(urls, bundledAudioFiles.map(path => new URL(path, scope).href));
   for (const url of urls) {
     assert.equal((await sw.request('bytes=0-0', { url })).status, 206);
     const full = await sw.request(undefined, { url });

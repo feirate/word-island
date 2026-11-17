@@ -4,7 +4,7 @@ import {
   createInitialProgress, validateProgress, localDateKey, getDailyPlan,
   applyAnswer, completeDailyAdventure,
 } from '../src/learning.js';
-import { WORDS, CLUES, PHRASES, getWord } from '../src/content.js';
+import { CLUES, getWord, getWordsForUnit, getPhrasesForUnit } from '../src/content.js';
 
 function finishPlan(progress, dateKey) {
   for (const item of getDailyPlan(progress, dateKey).required) {
@@ -14,10 +14,10 @@ function finishPlan(progress, dateKey) {
 }
 
 test('content is local, has ten source-theme words and labels supplementary sentences', () => {
-  assert.equal(WORDS.length, 10);
+  assert.equal(getWordsForUnit('kb2-u6').length, 10);
   assert.equal(getWord('chicken').zh, '鸡肉');
   assert.equal(CLUES.length, 7);
-  assert.ok(PHRASES.every(phrase => phrase.source.includes('补充示例')));
+  assert.ok(getPhrasesForUnit('kb2-u6').every(phrase => phrase.source.includes('补充示例')));
 });
 
 test('local date keys follow device local calendar, including month boundaries', () => {
@@ -27,7 +27,7 @@ test('local date keys follow device local calendar, including month boundaries',
 });
 
 test('daily plan has at most five new words and stays stable as answers arrive', () => {
-  const original = createInitialProgress();
+  const original = createInitialProgress('kb2-u6');
   const before = structuredClone(original);
   const plan = getDailyPlan(original, '2026-01-31');
   assert.equal(plan.newWordIds.length, 3);
@@ -44,7 +44,7 @@ test('daily plan has at most five new words and stays stable as answers arrive',
 });
 
 test('listening and spelling have separate practice and due records', () => {
-  const progress = applyAnswer(createInitialProgress(), {
+  const progress = applyAnswer(createInitialProgress('kb2-u6'), {
     wordId: 'milk', skill: 'listen', correct: true, usedHint: false, dateKey: '2026-01-31',
   });
   assert.equal(progress.words.milk.listen.attempts, 1);
@@ -54,7 +54,7 @@ test('listening and spelling have separate practice and due records', () => {
 });
 
 test('incomplete or incorrect-only practice cannot earn a reward', () => {
-  let progress = createInitialProgress();
+  let progress = createInitialProgress('kb2-u6');
   assert.equal(completeDailyAdventure(progress, '2026-11-14').rewarded, false);
   for (const item of getDailyPlan(progress, '2026-11-14').required) {
     progress = applyAnswer(progress, { ...item, correct: false, usedHint: false, dateKey: '2026-11-14' });
@@ -70,7 +70,7 @@ test('incomplete or incorrect-only practice cannot earn a reward', () => {
 });
 
 test('same local day is idempotent and first reward is counted only once', () => {
-  const finished = finishPlan(createInitialProgress(), '2026-11-14');
+  const finished = finishPlan(createInitialProgress('kb2-u6'), '2026-11-14');
   const first = completeDailyAdventure(finished, '2026-11-14');
   assert.equal(first.rewarded, true);
   assert.equal(first.companionUnlocked, false);
@@ -80,8 +80,8 @@ test('same local day is idempotent and first reward is counted only once', () =>
   assert.deepEqual(repeated.progress, first.progress);
 });
 
-test('seven nonconsecutive local days unlock one persistent bunny; later days cap rewards', () => {
-  let progress = createInitialProgress();
+test('seven nonconsecutive local days unlock one persistent bunny; later days begin the next journey', () => {
+  let progress = createInitialProgress('kb2-u6');
   const dates = ['2026-01-29', '2026-01-31', '2026-02-02', '2026-02-05', '2026-02-09', '2026-03-01', '2026-03-03'];
   for (const [index, dateKey] of dates.entries()) {
     progress = finishPlan(progress, dateKey);
@@ -94,15 +94,15 @@ test('seven nonconsecutive local days unlock one persistent bunny; later days ca
   assert.deepEqual(progress.companions, ['bunny']);
   assert.deepEqual(progress.rewardDates, dates);
   const eighth = completeDailyAdventure(finishPlan(progress, '2026-03-09'), '2026-03-09');
-  assert.equal(eighth.rewarded, false);
-  assert.equal(eighth.progress.rewardDates.length, 7);
+  assert.equal(eighth.rewarded, true);
+  assert.equal(eighth.progress.rewardDates.length, 8);
   assert.deepEqual(eighth.progress.companions, ['bunny']);
   assert.equal(eighth.progress.days['2026-03-09'].completed, true);
   assert.deepEqual(validateProgress(eighth.progress), eighth.progress);
 });
 
 test('due reviews take priority; errors and hints schedule an earlier return', () => {
-  let progress = finishPlan(createInitialProgress(), '2026-01-30');
+  let progress = finishPlan(createInitialProgress('kb2-u6'), '2026-01-30');
   progress = finishPlan(progress, '2026-01-31');
   assert.equal(progress.words.milk.listen.due, '2026-02-03');
   progress = applyAnswer(progress, {
@@ -118,7 +118,7 @@ test('due reviews take priority; errors and hints schedule an earlier return', (
 });
 
 test('repeating a correct answer on one day does not inflate review intervals', () => {
-  let progress = createInitialProgress();
+  let progress = createInitialProgress('kb2-u6');
   const answer = {wordId: 'milk', skill: 'listen', correct: true, usedHint: false, dateKey: '2026-01-31'};
   progress = applyAnswer(progress, answer);
   const due = progress.words.milk.listen.due;
@@ -128,7 +128,7 @@ test('repeating a correct answer on one day does not inflate review intervals', 
 });
 
 test('import accepts its own JSON round trip as an independent copy', () => {
-  const original = completeDailyAdventure(finishPlan(createInitialProgress(), '2026-11-14'), '2026-11-14').progress;
+  const original = completeDailyAdventure(finishPlan(createInitialProgress('kb2-u6'), '2026-11-14'), '2026-11-14').progress;
   const imported = validateProgress(JSON.parse(JSON.stringify(original)));
   assert.deepEqual(imported, original);
   imported.rewardDates.push('2026-11-15');
@@ -136,7 +136,7 @@ test('import accepts its own JSON round trip as an independent copy', () => {
 });
 
 test('import rejects incompatible, invalid dates, duplicates and invented reward progress', () => {
-  const base = createInitialProgress();
+  const base = createInitialProgress('kb2-u6');
   assert.throws(() => validateProgress(null));
   assert.throws(() => validateProgress({ ...base, version: 99 }));
   assert.throws(() => validateProgress({ ...base, rewardDates: ['2026-02-30'] }));
@@ -151,7 +151,7 @@ test('import rejects incompatible, invalid dates, duplicates and invented reward
 });
 
 test('hinted practice does not increase the number of new words in a later plan', () => {
-  let progress = createInitialProgress();
+  let progress = createInitialProgress('kb2-u6');
   const dateKey = '2026-01-31';
   // Practising one optional word must not imply readiness for five new words.
   for (let repeat = 0; repeat < 3; repeat += 1) {

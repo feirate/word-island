@@ -1,5 +1,6 @@
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
+const {chooseTestProfile}=require('./profile-test-helpers.cjs');
 
 const base = process.env.PREVIEW_URL || 'http://127.0.0.1:4173';
 const passed = [];
@@ -10,6 +11,7 @@ async function runCase(browser, name, exercise, initScript) {
     viewport: { width: 1440, height: 1100 }, timezoneId: 'Asia/Shanghai',
     permissions: ['microphone'], reducedMotion: 'reduce',
   });
+  await context.addInitScript(()=>localStorage.setItem('word-island:guide:v1','{"version":1,"status":"skipped","intro":0}'));
   if (initScript) await context.addInitScript(initScript);
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
@@ -18,6 +20,7 @@ async function runCase(browser, name, exercise, initScript) {
   const state = () => page.evaluate(() => window.__wordIsland.getState());
   try {
     await page.goto(base);
+    await chooseTestProfile(page);
     await page.waitForFunction(() => window.__wordIsland?.world.getDiagnostics().ready, { timeout: 30000 });
     await page.locator('#world-loading').waitFor({ state: 'hidden' });
     await exercise({ context, page, state });
@@ -40,7 +43,8 @@ async function finishSkill(page, state, skill) {
     const id = (await state()).activeWordId;
     if (skill === 'listen') await page.locator(`[data-answer="${id}"]`).click();
     else {
-      await page.locator('#spell-input').fill(id);
+      const english=await page.evaluate(async id=>(await import('./src/content.js')).getWord(id).en,id);
+      await page.locator('#spell-input').fill(english);
       await page.locator('#spell-input').press('Enter');
     }
     await page.locator('[data-action="next-question"]').click();
@@ -99,12 +103,12 @@ const observeAudio = () => {
     args: ['--enable-unsafe-swiftshader', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
   });
   try {
-    await runCase(browser, 'eighth demo day completes without another clue or real-progress changes', async ({ page, state }) => {
+    await runCase(browser, 'eighth demo day starts the second companion round without real-progress changes', async ({ page, state }) => {
       const realBefore = JSON.stringify((await state()).realProgress);
-      const storedBefore = await page.evaluate(() => ({
-        progress: localStorage.getItem('word-island:progress:v1'),
-        reading: localStorage.getItem('word-island:reading:v1'),
-      }));
+      const storedBefore = await page.evaluate(async() => {const p=await import('./src/profiles.js'),id=window.__wordIsland.getState().activeProfile.id;return {
+        progress: localStorage.getItem(p.profileStorageKey(id,'progress')),
+        reading: localStorage.getItem(p.profileStorageKey(id,'reading')),
+      };});
       await page.locator('#demo-toggle').click();
       await page.locator('#demo-banner [data-action="demo-ending"]').click();
       assert.equal((await state()).progress.rewardDates.length, 7);
@@ -119,13 +123,14 @@ const observeAudio = () => {
       await page.locator('[data-action="collect"]').click();
       const after = await state();
       assert.equal(after.progress.days['2026-01-08'].completed, true);
-      assert.equal(after.progress.rewardDates.length, 7);
+      assert.equal(after.progress.rewardDates.length, 8);
+      assert.deepEqual(after.progress.companions,['bunny']);
       assert.equal(Object.values(after.progress.days).filter(day => day.completed).length, 8);
       assert.equal(JSON.stringify(after.realProgress), realBefore);
-      assert.deepEqual(await page.evaluate(() => ({
-        progress: localStorage.getItem('word-island:progress:v1'),
-        reading: localStorage.getItem('word-island:reading:v1'),
-      })), storedBefore);
+      assert.deepEqual(await page.evaluate(async() => {const p=await import('./src/profiles.js'),id=window.__wordIsland.getState().activeProfile.id;return {
+        progress: localStorage.getItem(p.profileStorageKey(id,'progress')),
+        reading: localStorage.getItem(p.profileStorageKey(id,'reading')),
+      };}), storedBefore);
     });
 
     await runCase(browser, 'pending microphone permission blocks duplicate requests and context switches', async ({ page, state }) => {
@@ -157,8 +162,10 @@ const observeAudio = () => {
       assert.equal((await state()).dateKey, '2026-11-14');
       await page.locator('[data-nav="camp"]').first().click();
       await page.locator('[data-task="listen"]').click();
+      await page.locator('[data-answer]').first().waitFor();
       const first = (await state()).activeWordId;
       await page.locator(`[data-answer="${first}"]`).click();
+      await page.locator('.feedback').filter({hasText:'找到了'}).waitFor();
       await page.locator('[data-action="next-question"]').click();
       const oldDay = structuredClone((await state()).progress.days['2026-11-14']);
       const staleId = (await state()).activeWordId;
@@ -169,8 +176,10 @@ const observeAudio = () => {
       assert.deepEqual((await state()).progress.days['2026-11-14'], oldDay);
       assert.equal((await state()).progress.days['2026-11-15'], undefined);
       await page.locator('[data-task="listen"]').click();
+      await page.locator('[data-answer]').first().waitFor();
       const next = (await state()).activeWordId;
       await page.locator(`[data-answer="${next}"]`).click();
+      await page.locator('.feedback').filter({hasText:'找到了'}).waitFor();
       assert.equal((await state()).progress.days['2026-11-15'].answers[next].listen.completed, true);
       assert.deepEqual((await state()).progress.days['2026-11-14'], oldDay);
     }, controlledDate);
@@ -183,6 +192,7 @@ const observeAudio = () => {
       const play = async () => {
         await page.locator('[data-nav="camp"]').first().click();
         await page.locator('[data-task="listen"]').click();
+        await page.locator('[data-answer]').first().waitFor();
         const id = (await state()).activeWordId;
         await page.locator('[data-action="play-word"]').click();
         try {
@@ -201,6 +211,7 @@ const observeAudio = () => {
       };
       const onlineWord = await play();
       await page.locator(`[data-answer="${onlineWord}"]`).click();
+      await page.locator('.feedback').filter({hasText:'找到了'}).waitFor();
       await page.locator('[data-action="next-question"]').click();
       const offlineWord = (await state()).activeWordId;
       assert.notEqual(offlineWord, onlineWord, 'offline case must play a previously unheard asset');
@@ -210,6 +221,7 @@ const observeAudio = () => {
       await page.locator('[data-close="parent-dialog"]').click();
       await context.setOffline(true);
       await page.reload();
+      await chooseTestProfile(page);
       await page.waitForFunction(() => window.__wordIsland?.world.getDiagnostics().ready, { timeout: 30000 });
       assert.equal(await play(), offlineWord);
     }, observeAudio);

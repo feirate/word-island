@@ -20,19 +20,22 @@
       <nav class="main-nav" aria-label="主要页面">
         <button type="button" data-nav="home" aria-current="page">我的小屋</button>
         <button type="button" data-nav="camp">外出冒险</button>
-        <button type="button" data-nav="clues">伙伴线索 <span class="nav-count">0/7</span></button>
+        <button type="button" data-nav="clues">伙伴图鉴 <span class="nav-count">0/8</span></button>
         <button type="button" data-nav="growth">成长记录</button>
       </nav>
-      <button type="button" class="parent-button" id="parent-button">家长入口 <span aria-hidden="true">⚙</span></button>
+      <div class="header-actions"><button type="button" class="user-button" id="user-button"><span id="active-user-name">选择名字</span><span aria-hidden="true">↔</span></button><button type="button" class="parent-button" id="parent-button">家长入口 <span aria-hidden="true">⚙</span></button></div>
     </header>
     <main class="game-layout">
       <section class="world-column" aria-label="三维学习世界">
-        <div class="scene-heading"><div><span class="eyebrow" id="scene-kicker">一个慢慢长大的小世界</span><h1 id="scene-title">欢迎回到你的小屋</h1></div><button type="button" class="mode-button" id="demo-toggle">试玩七日故事 <span aria-hidden="true">↗</span></button></div>
+        <div class="scene-heading"><div><span class="eyebrow" id="scene-kicker">一个慢慢长大的小世界</span><h1 id="scene-title">欢迎回到你的小屋</h1></div><div class="heading-actions"><button type="button" class="mode-button" id="story-replay">听芽芽讲故事</button><button type="button" class="mode-button" id="demo-toggle">试玩七日故事 <span aria-hidden="true">↗</span></button></div></div>
         <div class="world-frame">
           <div id="world-canvas" aria-label="可以轻点物件的三维场景"></div>
+          <div id="companion-preview" aria-label="可旋转查看的三维伙伴" hidden></div>
+          <div class="companion-loading" id="companion-loading" role="status" hidden>伙伴正在和你打招呼…</div>
           <div class="world-loading" id="world-loading"><span class="loading-seed" aria-hidden="true">🌱</span><strong>小岛正在醒来…</strong><span>为你摆好小屋和冒险营地</span></div>
           <div class="world-badge"><span class="status-dot"></span><span id="world-location">暖暖小屋</span></div>
-          <div class="world-controls"><button type="button" id="camera-reset" aria-label="回到默认视角">↺ 归位</button><span>轻点物件 · 拖动看看四周</span></div>
+          <section class="character-speech" id="character-speech" aria-label="人物对话" hidden></section>
+          <div class="world-controls"><div class="world-control-buttons"><button type="button" id="camera-reset" aria-label="回到默认视角">↺ 归位</button><button type="button" id="ask-hero">问问芽芽</button></div><span>轻点物件 · 拖动看看四周</span></div>
           <div class="demo-banner" id="demo-banner" hidden><span>演示存档 · 不影响真实进度</span><button type="button" data-action="demo-ending">看看伙伴入住</button><button type="button" data-action="exit-demo">退出试玩</button></div>
         </div>
         <div class="scene-shortcuts" id="scene-shortcuts"></div>
@@ -40,13 +43,21 @@
       </section>
       <aside class="notebook" aria-label="今日任务与学习手记"><div id="notebook-content"></div></aside>
     </main>
-    <footer class="app-footer"><span>在单词里冒险，和伙伴一起长大。</span><span>一个孩子 · 一个小世界 <span aria-hidden="true">✦</span></span></footer>
+    <footer class="app-footer"><span>在单词里冒险，和伙伴一起长大。</span><span>每个孩子 · 一个小世界 <span aria-hidden="true">✦</span></span></footer>
   </div>
+  <dialog id="profile-dialog" aria-labelledby="profile-title"><div class="dialog-header"><div><span class="eyebrow">欢迎来到词遇岛</span><h2 id="profile-title">今天，谁来探险？</h2><p class="profile-intro">选自己的名字，回到自己的小屋。</p></div></div><div class="dialog-body">
+    <div id="profile-list" class="profile-list"></div>
+    <p id="profile-legacy" class="profile-legacy" hidden>发现这台设备以前的学习记录。给它起个名字，就能接着学。</p>
+    <form id="create-profile-form" class="profile-create"><label for="profile-name">第一次来？给自己起个名字</label><div class="profile-create-row"><input id="profile-name" type="text" maxlength="24" placeholder="例如：小明 / Lucy" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="profile-name-help"><button id="create-profile" type="submit" class="button primary">新建并出发</button></div><p id="profile-name-help">只用中文和英文字母，1–12 个字；最多 3 个名字。</p></form>
+    <p id="profile-error" class="profile-error" role="alert"></p><p class="profile-privacy">名字和学习记录只保存在当前设备、当前浏览器。</p>
+    <button type="button" class="button wide" id="profile-cancel" hidden>返回当前小屋</button>
+  </div></dialog>
+  <dialog id="delete-profile-dialog" aria-labelledby="delete-profile-title"><div class="dialog-header"><h2 id="delete-profile-title">确定要删除这个名字吗？</h2><button type="button" class="icon-button" data-close="delete-profile-dialog" aria-label="取消删除">×</button></div><div class="dialog-body"><p>删除「<strong id="delete-profile-name"></strong>」后，它的学习进度、伙伴、个人录音和浏览器内备份都会一起清除，无法撤销。</p><p class="muted">其他名字的记录和共用教材音频会保留。</p><p id="delete-profile-error" class="profile-error" role="alert"></p><div class="button-row"><button type="button" class="button" data-close="delete-profile-dialog">留着，返回</button><button type="button" class="button danger" id="confirm-delete-profile">删除这个用户及进度</button></div></div></dialog>
   <dialog id="parent-dialog" aria-labelledby="parent-title"><div class="dialog-header"><div><span class="eyebrow">给家长的小工具</span><h2 id="parent-title">把成长留在自己手里</h2></div><button type="button" class="icon-button" data-close="parent-dialog" aria-label="关闭家长入口">×</button></div><div class="dialog-body">
-    <section class="setting-section"><h3>学习进度</h3><p>进度与录音保存在当前浏览器，换设备时可以导出、导入进度文件。录音与示范音频不包含在进度文件中。</p><div class="button-row"><button type="button" class="button primary" id="export-progress">导出真实进度</button><label class="button">导入进度文件<input id="import-progress" type="file" accept=".json,application/json" hidden></label><button type="button" class="button subtle" id="export-backup" hidden>导出上次导入前备份</button></div></section>
-    <section class="setting-section"><h3>本地示范音频</h3><p>内置 Daniel 英音合成示范，非教材原音，准备资源后可直接离线播放。也可优先使用自己导入的音频：单词文件命名为 milk.mp3、rice.m4a 等；短句使用 phrase-rice-please.mp3 等名称。单条不超过 15 MiB。</p><label class="button">导入本地音频<input id="import-audio" type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.webm" multiple hidden></label><p class="setting-feedback" id="audio-import-status" aria-live="polite"></p></section>
-    <section class="setting-section"><h3>离线准备</h3><p>联网打开后，准备好程序、内置英音与四个模型就能离线探索、练习。导入的音频也保存在本机，不需要下载系统声线。</p><button type="button" class="button" id="prepare-offline">准备离线资源</button><p class="setting-feedback" id="offline-detail" aria-live="polite"></p></section>
-    <section class="setting-section"><h3>陪孩子试玩</h3><p>演示存档与真实存档独立。可以快进到伙伴入住，看看孩子是否喜欢这个世界。</p><div class="button-row"><button type="button" class="button" data-action="start-demo">从第一条线索开始</button><button type="button" class="button" data-action="demo-ending">预览伙伴入住</button></div></section>
+    <section class="setting-section"><h3 id="parent-profile-title">当前用户的学习进度</h3><p>导出、导入只针对当前名字。进度与录音保存在当前浏览器，换设备时可以导出、导入进度文件。录音与示范音频不包含在进度文件中；未领取线索的朗读状态换设备后需重新确认。</p><div class="button-row"><button type="button" class="button primary" id="export-progress">导出真实进度</button><label class="button">导入进度文件<input id="import-progress" type="file" accept=".json,application/json" hidden></label><button type="button" class="button subtle" id="export-backup" hidden>导出上次导入前备份</button><button type="button" class="button" data-action="switch-profile">切换或管理名字</button></div></section>
+    <section class="setting-section"><h3>本地示范音频 · 本机用户共用</h3><p>内置 Daniel 英音合成示范，非教材原音，准备资源后可直接离线播放。也可优先使用自己导入的教材示范音：单词文件命名为 milk.mp3、rice.m4a 等；短句使用 phrase-rice-please.mp3 等名称。单条不超过 15 MiB。孩子的个人跟读录音分别保存。</p><label class="button">导入共用教材音频<input id="import-audio" type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.webm" multiple hidden></label><p class="setting-feedback" id="audio-import-status" aria-live="polite"></p></section>
+    <section class="setting-section"><h3>离线准备</h3><p>联网打开后，准备好程序、内置英音与全部伙伴模型就能离线探索、练习。导入的音频也保存在本机，不需要下载系统声线。</p><button type="button" class="button" id="prepare-offline">准备离线资源</button><p class="setting-feedback" id="offline-detail" aria-live="polite"></p></section>
+    <section class="setting-section"><h3>陪孩子试玩</h3><p>演示存档与真实存档独立。可以快进到伙伴入住，看看孩子是否喜欢这个世界。</p><div class="button-row"><button type="button" class="button" data-action="start-demo">从第一条线索开始</button><button type="button" class="button" data-action="demo-ending">预览团团入住</button><button type="button" class="button" data-action="demo-all">预览八位伙伴入住</button></div></section>
     <div class="privacy-note">没有账号、广告、排行榜或在线语音识别。本站公开提供程序与原创模型；孩子的学习记录和录音不会被程序上传。</div>
   </div></dialog>
   <dialog id="import-dialog" aria-labelledby="import-title"><div class="dialog-header"><h2 id="import-title">接着另一台设备的冒险</h2><button type="button" class="icon-button" data-close="import-dialog" aria-label="取消导入">×</button></div><div class="dialog-body"><p id="import-summary"></p><p class="muted">导入会替换当前真实进度；导入前会在本机保留一份旧备份。</p><div class="button-row"><button type="button" class="button primary" id="confirm-import">备份并导入</button><button type="button" class="button" data-close="import-dialog">取消</button></div></div></dialog>

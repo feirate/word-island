@@ -1,0 +1,21 @@
+// Asset structure only. Actual shape and animation are inspected in Three.js.
+const fs=require('node:fs');
+const path=require('node:path');
+const assert=require('node:assert/strict');
+const file=path.resolve('assets/models/child.glb');
+const bytes=fs.readFileSync(file);
+assert.equal(bytes.toString('ascii',0,4),'glTF');
+const gltf=JSON.parse(bytes.toString('utf8',20,20+bytes.readUInt32LE(12)));
+const root=gltf.nodes.find(node=>node.extras?.assetId==='child'&&node.extras?.role==='hero');
+assert(root,'child must have its own identity, separate from the fox guide');
+const head=gltf.nodes.find(node=>node.extras?.role==='head');
+const body=gltf.nodes.find(node=>node.extras?.role==='body');
+assert(head?.children?.length>=3&&body?.children?.length>=3,'linked head and body are required');
+assert(gltf.animations?.length===1&&gltf.animations[0].channels.length>=2,'one coordinated idle');
+assert(gltf.animations[0].channels.some(channel=>channel.target.node===gltf.nodes.indexOf(head)&&channel.target.path==='rotation'),'real linked head movement');
+assert(!gltf.nodes.some(node=>node.extras?.interactionId),'interaction IDs belong to the application');
+const triangles=gltf.meshes.reduce((sum,mesh)=>sum+mesh.primitives.reduce((n,primitive)=>n+gltf.accessors[primitive.indices].count/3,0),0);
+assert(triangles>5000&&triangles<26000,'meaningful bounded 3D geometry');
+assert(bytes.length<615000,'phone-friendly asset budget');
+assert(fs.statSync(file.replace('.glb','.blend')).size>1000,'editable Blender source');
+console.log(JSON.stringify({passed:'child structure',bytes:bytes.length,triangles,meshes:gltf.meshes.length,materials:gltf.materials.length}));

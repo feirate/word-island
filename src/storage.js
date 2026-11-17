@@ -1,4 +1,5 @@
 import { createInitialProgress, validateProgress } from './learning.js';
+import { getProfile,profileStorageKey,withProfileStorageLock } from './profiles.js';
 
 const PROGRESS_KEY = 'word-island:progress:v1';
 const MAX_JSON_BYTES = 1024 * 1024;
@@ -13,9 +14,14 @@ function checkTextSize(text) {
   }
 }
 
-export function loadProgress() {
+function requireProfile(profileId) {
+  if(profileId!==undefined&&!getProfile(profileId))throw new Error('这位本地用户已不存在，请重新选择用户。');
+}
+
+export function loadProgress(profileId) {
   try {
-    const text = globalThis.localStorage.getItem(PROGRESS_KEY);
+    requireProfile(profileId);
+    const text = globalThis.localStorage.getItem(profileId===undefined?PROGRESS_KEY:profileStorageKey(profileId,'progress'));
     if (text === null) return { progress: createInitialProgress(), error: null };
     checkTextSize(text);
     return { progress: validateProgress(JSON.parse(text)), error: null };
@@ -27,7 +33,7 @@ export function loadProgress() {
   }
 }
 
-export function saveProgress(progress) {
+export function saveProgress(progress,profileId) {
   let text;
   try {
     text = JSON.stringify(validateProgress(progress));
@@ -36,10 +42,37 @@ export function saveProgress(progress) {
     throw new Error(`学习进度未保存：${error.message}`);
   }
   try {
-    globalThis.localStorage.setItem(PROGRESS_KEY, text);
+    requireProfile(profileId);
+    globalThis.localStorage.setItem(profileId===undefined?PROGRESS_KEY:profileStorageKey(profileId,'progress'), text);
   } catch {
     throw new Error('本机学习进度保存失败，可能是存储空间不足或浏览器禁用了存储。请先导出进度文件备份。');
   }
+}
+
+// Apply an operation to the latest committed save while holding the same lock
+// used for profile deletion. A stale tab must never replace another tab's work.
+export async function updateProgress(profileId,mutator,{allowRecovery=false,beforeImportBackup=false}={}) {
+  const key=profileStorageKey(profileId,'progress');
+  if(typeof mutator!=='function')throw new Error('学习进度更新操作无效。');
+  return withProfileStorageLock(async()=>{
+    requireProfile(profileId);
+    const loaded=loadProgress(profileId);
+    if(loaded.error){
+      if(!allowRecovery)throw new Error(loaded.error);
+      try {
+        const original=globalThis.localStorage.getItem(key),backup=profileStorageKey(profileId,'unreadable-backup');
+        // If preserving the unreadable text fails, leave the source untouched.
+        if(original!==null&&globalThis.localStorage.getItem(backup)===null)globalThis.localStorage.setItem(backup,original);
+      }catch {throw new Error('原记录备份失败，学习进度尚未替换。请检查浏览器的本地存储空间。');}
+    }
+    const next=validateProgress(await mutator(loaded.progress));
+    if(beforeImportBackup){
+      try {globalThis.localStorage.setItem(profileStorageKey(profileId,'before-import'),exportProgress(loaded.progress));}
+      catch {throw new Error('导入前备份保存失败，学习进度尚未替换。请检查浏览器的本地存储空间。');}
+    }
+    saveProgress(next,profileId);
+    return next;
+  });
 }
 
 export function exportProgress(progress) {
@@ -132,19 +165,69 @@ async function audioRequest(mode, operation) {
   });
 }
 
-export async function getClip(key) {
+function scopedClipKey(key,profileId) {
+  requireProfile(profileId);
+  return profileId!==undefined&&key.startsWith('recording:')?`profile:${profileId}:${key}`:key;
+}
+
+export async function getClip(key,profileId) {
   checkClipKey(key);
-  const clip = await audioRequest('readonly', store => store.get(key));
+  const clip = await audioRequest('readonly', store => store.get(scopedClipKey(key,profileId)));
   if (clip === undefined || clip === null) return null;
   if (!(clip instanceof Blob) || !clip.type.startsWith('audio/')) throw new Error('本机保存的音频格式无效，请重新导入或录音。');
   return clip;
 }
 
-export async function putClip(key, blob) {
+export async function putClip(key, blob,profileId) {
   checkClipKey(key);
   if (!(blob instanceof Blob) || !blob.type.startsWith('audio/') || blob.size === 0) {
     throw new Error('请选择有内容的音频文件，文件类型须为 audio/ 开头。');
   }
   if (blob.size > MAX_CLIP_BYTES) throw new Error('单个音频文件过大，请选择不超过 15 MiB 的文件。');
-  await audioRequest('readwrite', store => store.put(blob, key));
+  const write=()=>audioRequest('readwrite', store => store.put(blob,scopedClipKey(key,profileId)));
+  if(profileId!==undefined&&key.startsWith('recording:'))await withProfileStorageLock(write);
+  else await write();
+}
+
+async function audioBatch(operation) {
+  const db=await openAudioDb();
+  return new Promise((resolve,reject)=>{
+    let settled=false;
+    const finish=error=>{if(settled)return;settled=true;db.close();if(error)reject(audioError(error));else resolve();};
+    try {
+      const transaction=db.transaction(AUDIO_STORE,'readwrite');
+      transaction.oncomplete=()=>finish(null);
+      transaction.onabort=()=>finish(transaction.error||new Error('Audio transaction aborted'));
+      transaction.onerror=()=>finish(transaction.error||new Error('Audio transaction failed'));
+      operation(transaction.objectStore(AUDIO_STORE));
+    }catch(error){finish(error);}
+  });
+}
+
+export async function copyLegacyRecordings(profileId) {
+  profileStorageKey(profileId,'progress');
+  await audioBatch(store=>{
+    const request=store.getAllKeys();
+    request.onsuccess=()=>{
+      for(const key of request.result)if(typeof key==='string'&&key.startsWith('recording:')){
+        const clip=store.get(key);
+        clip.onsuccess=()=>{store.put(clip.result,`profile:${profileId}:${key}`);};
+      }
+    };
+  });
+}
+
+export async function deleteProfileRecordings(profileId,{includeLegacy=false}={}) {
+  profileStorageKey(profileId,'progress');
+  await audioBatch(store=>{
+    const request=store.getAllKeys();
+    request.onsuccess=()=>{for(const key of request.result)if(typeof key==='string'&&(key.startsWith(`profile:${profileId}:recording:`)||(includeLegacy&&key.startsWith('recording:'))))store.delete(key);};
+  });
+}
+
+export async function deleteLegacyRecordings() {
+  await audioBatch(store=>{
+    const request=store.getAllKeys();
+    request.onsuccess=()=>{for(const key of request.result)if(typeof key==='string'&&key.startsWith('recording:'))store.delete(key);};
+  });
 }

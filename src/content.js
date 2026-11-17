@@ -1,4 +1,7 @@
-export const COURSE = Object.freeze({
+import { KB3_UNITS, KB3_WORDS, KB3_PHRASES } from './kb3.js';
+import { FIRST_COMPANION_CLUES } from './companions.js';
+
+const LEGACY_COURSE = Object.freeze({
   id: 'kb2-u6',
   title: 'Kid’s Box 2 · Unit 6',
   series: '剑桥国际少儿英语 · Kid’s Box',
@@ -14,7 +17,7 @@ const word = (id, zh, emoji, phonics, phrase) => Object.freeze({
   id, en: id, english: id, zh, chinese: zh, emoji, phonics, phrase,
 });
 
-export const WORDS = Object.freeze([
+const LEGACY_WORDS = Object.freeze([
   word('milk', '牛奶', '🥛', 'm /m/，i /ɪ/；听听词尾的 /lk/。', 'I have milk for breakfast.'),
   word('rice', '米饭', '🍚', 'i 和词尾不发音的 e 配合，i 读 /aɪ/；c 在这里读 /s/。', 'Can I have some rice, please?'),
   word('chicken', '鸡肉', '🍗', 'ch 合起来读 /tʃ/；在 kitchen 里也能听到这个声音。', 'Can I have some chicken, please?'),
@@ -36,18 +39,44 @@ const phrase = (id, en, zh, wordIds) => Object.freeze({
   source: '软件补充示例句；内置英音合成示范，非教材原音。',
 });
 
-export const PHRASES = Object.freeze([
+const LEGACY_PHRASES = Object.freeze([
   phrase('rice-please', 'Can I have some rice, please?', '请给我一些米饭，好吗？', ['rice']),
   phrase('fish-and-chips', 'I like fish and chips.', '我喜欢吃炸鱼和薯条。', ['fish', 'chips']),
   phrase('milk-breakfast', 'I have milk for breakfast.', '我早餐喝牛奶。', ['milk', 'breakfast']),
 ]);
 
-export const CLUES = Object.freeze([
-  { id: 'footprints', index: 1, title: '两排小脚印', description: '小路上出现一串轻巧的脚印，附近似乎住着一位新朋友。', emoji: '🐾', kind: 'clue' },
-  { id: 'white-fluff', index: 2, title: '一团软软的白毛', description: '树枝上留着一点白色绒毛。新朋友的毛会是什么颜色？', emoji: '☁️', kind: 'clue' },
-  { id: 'carrot-basket', index: 3, title: '小小的胡萝卜篮', description: '你找到一个小篮子，篮边画着胡萝卜。把它留作冒险纪念吧。', emoji: '🥕', kind: 'item' },
-  { id: 'long-ears', index: 4, title: '树后的长耳朵', description: '树后探出两只长长的耳朵，又害羞地缩了回去。', emoji: '🌿', kind: 'clue' },
-  { id: 'welcome-ribbon', index: 5, title: '欢迎小彩带', description: '你找到了准备欢迎餐的小彩带，可以带回小屋。', emoji: '🎀', kind: 'item' },
-  { id: 'bunny-letter', index: 6, title: '团团的来信', description: '“你好，我是团团！听说你在准备欢迎餐，我想来认识你。”', emoji: '✉️', kind: 'clue' },
-  { id: 'bunny-arrives', index: 7, title: '团团来到小屋', description: '原来是白白的团团！它带着小篮子，成为小屋里的第一位收藏伙伴。', emoji: '🐰', kind: 'clue' },
-].map(Object.freeze));
+export const CLUES = FIRST_COMPANION_CLUES;
+
+// Stable vocabulary IDs share listening/spelling history across books.
+function uniqueById(records) {
+  const items=new Map();
+  for(const item of records)if(!items.has(item.id))items.set(item.id,item);
+  return Object.freeze([...items.values()]);
+}
+export const WORDS = uniqueById([...LEGACY_WORDS, ...KB3_WORDS]);
+export const PHRASES = uniqueById([...LEGACY_PHRASES, ...KB3_PHRASES]);
+export const DEFAULT_UNIT_ID = 'kb3-hello';
+export const COURSE = Object.freeze({
+  ...LEGACY_COURSE,
+  bookId:'kb2', theme:'食物与三餐',
+  wordIds:LEGACY_WORDS.map(word=>word.id), phraseIds:LEGACY_PHRASES.map(phrase=>phrase.id),
+  phonics:{title:'听见 ch 的声音',description:'ch 可以读 /tʃ/：chicken、chips。把声音和字母联系起来。'},
+});
+export const UNITS = Object.freeze([...KB3_UNITS, COURSE]);
+export const COURSES = Object.freeze([
+  Object.freeze({id:'kb3',title:'Kid’s Box 3',subtitle:'学生用书 3 · 从 Hello! 开始',units:KB3_UNITS}),
+  Object.freeze({id:'kb2',title:'Kid’s Box 2',subtitle:'之前的食物单元练习',units:[COURSE]}),
+]);
+
+export function getUnit(id) { return UNITS.find(unit=>unit.id===id); }
+export function getPhrase(id) { return PHRASES.find(phrase=>phrase.id===id); }
+export function getWordsForUnit(id) {
+  const unit=getUnit(id);
+  if(!unit)throw new Error('没有找到这个教材单元，请重新选择。');
+  return unit.wordIds.map(getWord);
+}
+export function getPhrasesForUnit(id) {
+  const unit=getUnit(id);
+  if(!unit)throw new Error('没有找到这个教材单元，请重新选择。');
+  return unit.phraseIds.map(getPhrase);
+}

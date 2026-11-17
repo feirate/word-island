@@ -5,4 +5,5 @@ tmp/
 test-results/
 *.blend1
 *.log
+__pycache__/
 .env*

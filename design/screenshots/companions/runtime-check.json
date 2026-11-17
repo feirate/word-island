@@ -1,0 +1,109 @@
+{
+  "assets": [
+    {
+      "id": "bunny",
+      "clips": 1,
+      "size": [
+        0.9298419952392578,
+        2.063235776791191,
+        1.0370447440169515
+      ],
+      "minY": 0,
+      "headChildren": 13,
+      "triangles": 19832,
+      "drawCalls": 23
+    },
+    {
+      "id": "squirrel",
+      "clips": 1,
+      "size": [
+        1.364106366626378,
+        1.490958571434021,
+        1.1410445494549541
+      ],
+      "minY": 0,
+      "headChildren": 5,
+      "triangles": 19410,
+      "drawCalls": 12
+    },
+    {
+      "id": "cat",
+      "clips": 1,
+      "size": [
+        1.1693755185524186,
+        1.5599143505096436,
+        0.8873604015818055
+      ],
+      "minY": 0,
+      "headChildren": 6,
+      "triangles": 14592,
+      "drawCalls": 12
+    },
+    {
+      "id": "dog",
+      "clips": 1,
+      "size": [
+        1.230844933996848,
+        1.6275768856037505,
+        1.103948848043888
+      ],
+      "minY": 0,
+      "headChildren": 6,
+      "triangles": 14756,
+      "drawCalls": 12
+    },
+    {
+      "id": "hedgehog",
+      "clips": 1,
+      "size": [
+        1.1109623908996582,
+        1.3360417485237122,
+        1.2108480903713268
+      ],
+      "minY": 0,
+      "headChildren": 5,
+      "triangles": 17224,
+      "drawCalls": 10
+    },
+    {
+      "id": "turtle",
+      "clips": 1,
+      "size": [
+        1.475890610871296,
+        1.0600000023841858,
+        1.4463659543348613
+      ],
+      "minY": 0,
+      "headChildren": 5,
+      "triangles": 10608,
+      "drawCalls": 11
+    },
+    {
+      "id": "raccoon",
+      "clips": 1,
+      "size": [
+        1.3917248305346896,
+        1.4900000393390656,
+        1.0577491025190044
+      ],
+      "minY": 0,
+      "headChildren": 6,
+      "triangles": 15768,
+      "drawCalls": 12
+    },
+    {
+      "id": "fox",
+      "clips": 1,
+      "size": [
+        1.537704566709157,
+        1.6393320560455322,
+        1.1783059628913317
+      ],
+      "minY": 0,
+      "headChildren": 5,
+      "triangles": 16314,
+      "drawCalls": 12
+    }
+  ],
+  "errors": []
+}

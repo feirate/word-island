@@ -1,0 +1,358 @@
+{
+  "observations": [
+    {
+      "label": "first375",
+      "viewport": [
+        375,
+        667
+      ],
+      "scrollY": 0,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 15,
+        "y": 126.0625,
+        "width": 345,
+        "height": 414.875,
+        "bottom": 540.9375
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 413,
+        "client": 413
+      },
+      "text": "欢迎来到词遇岛今天，谁来探险？选自己的名字，回到自己的小屋。\n    \n    发现这台设备以前的学习记录。给它起个名字，就能接着学。\n    第一次来？给自己起个名字新建并出发只用中文和英文字母，1–12 个字；最多 "
+    },
+    {
+      "label": "welcome375",
+      "viewport": [
+        375,
+        667
+      ],
+      "scrollY": 0,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 56,
+        "y": 317.5,
+        "width": 290,
+        "height": 219.28125,
+        "bottom": 536.78125
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 230,
+        "client": 217
+      },
+      "text": "🦊芽芽初到词遇岛 · 1 / 4跳过引导我们的探险基地嗨，我是芽芽！欢迎来到词遇岛。这间小屋，就是我们一起探险、带朋友回来的地方。你好，芽芽！ →"
+    },
+    {
+      "label": "three375",
+      "viewport": [
+        375,
+        667
+      ],
+      "scrollY": 0,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 15,
+        "y": 40.015625,
+        "width": 345,
+        "height": 586.953125,
+        "bottom": 626.96875
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 719,
+        "client": 585
+      },
+      "text": "欢迎来到词遇岛今天，谁来探险？选自己的名字，回到自己的小屋。\n    小小词岛探索队长小明同学完成 0 天 · 0 位伙伴→删除Abcdefghijkl完成 0 天 · 0 位伙伴→删除小乐完成 0 天 · 0 位伙伴→"
+    },
+    {
+      "label": "keyboard375",
+      "viewport": [
+        375,
+        350
+      ],
+      "scrollY": 0,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 15,
+        "y": 21,
+        "width": 345,
+        "height": 308,
+        "bottom": 329
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 719,
+        "client": 306
+      },
+      "text": "欢迎来到词遇岛今天，谁来探险？选自己的名字，回到自己的小屋。\n    小小词岛探索队长小明同学完成 0 天 · 0 位伙伴→删除Abcdefghijkl完成 0 天 · 0 位伙伴→删除小乐完成 0 天 · 0 位伙伴→"
+    },
+    {
+      "label": "campAfterNav375",
+      "viewport": [
+        375,
+        667
+      ],
+      "scrollY": 149,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 16,
+        "y": 681.25,
+        "width": 343,
+        "height": 677.234375,
+        "bottom": 1358.484375
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 675,
+        "client": 675
+      },
+      "text": "TODAY’S LITTLE ADVENTURE约 10–15 分钟\n    认识朋友与玩具的小秘密\n    今天探索“认识朋友与玩具”。帮芽芽听懂、拼出这些词，再给新朋友留一句话。\n    ▤ Kid’s Box 3 "
+    },
+    {
+      "label": "spell375",
+      "viewport": [
+        375,
+        667
+      ],
+      "scrollY": 802,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 38,
+        "y": 347.25,
+        "width": 299,
+        "height": 57,
+        "bottom": 404.25
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 55,
+        "client": 55
+      },
+      "text": ""
+    },
+    {
+      "label": "spellKeyboard375",
+      "viewport": [
+        375,
+        350
+      ],
+      "scrollY": 841,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 38,
+        "y": 308.25,
+        "width": 299,
+        "height": 57,
+        "bottom": 365.25
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 55,
+        "client": 55
+      },
+      "text": ""
+    },
+    {
+      "label": "album375",
+      "viewport": [
+        375,
+        667
+      ],
+      "scrollY": 149,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 16,
+        "y": 681.25,
+        "width": 343,
+        "height": 1657.046875,
+        "bottom": 2338.296875
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 1655,
+        "client": 1655
+      },
+      "text": "OUR LITTLE FRIENDS0 / 8 已入住等你认识的朋友点一位伙伴，就能转着看看它。每攒七条线索，邀请一位朋友住进小屋。\n    团团 · 小兔子寻找中栗栗 · 小松鼠未相遇米米 · 小猫未相遇豆豆 · 小狗"
+    },
+    {
+      "label": "selectedFox375",
+      "viewport": [
+        375,
+        667
+      ],
+      "scrollY": 149,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 16,
+        "y": 155,
+        "width": 343,
+        "height": 356.25,
+        "bottom": 511.25
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 354,
+        "client": 354
+      },
+      "text": "\n          \n          \n          伙伴正在和你打招呼…\n          🌱小岛正在醒来…为你摆好小屋和冒险营地\n          未相遇 · 它在小岛的前方等你\n         "
+    },
+    {
+      "label": "parent375",
+      "viewport": [
+        375,
+        667
+      ],
+      "scrollY": 0,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 19,
+        "y": 40.015625,
+        "width": 337,
+        "height": 586.953125,
+        "bottom": 626.96875
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 1143,
+        "client": 585
+      },
+      "text": "给家长的小工具把成长留在自己手里×\n    小小词岛探索队长小明同学的学习进度导出、导入只针对当前名字。进度与录音保存在当前浏览器，换设备时可以导出、导入进度文件。录音与示范音频不包含在进度文件中。导出真实进度导入进度文"
+    },
+    {
+      "label": "import375",
+      "viewport": [
+        375,
+        667
+      ],
+      "scrollY": 0,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 19,
+        "y": 173.78125,
+        "width": 337,
+        "height": 319.4375,
+        "bottom": 493.21875
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 317,
+        "client": 317
+      },
+      "text": "接着另一台设备的冒险×这份备份有 7 天练习记录、7 条线索、1 位伙伴。确认后替换「小小词岛探索队长小明同学」的进度，接着学习。导入会替换当前真实进度；导入前会在本机保留一份旧备份。备份并导入取消"
+    },
+    {
+      "label": "profiles-390x844",
+      "viewport": [
+        390,
+        844
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "bounds": {
+        "x": 15,
+        "y": 61.53125,
+        "width": 360,
+        "height": 720.9375,
+        "bottom": 782.46875
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 719,
+        "client": 719
+      },
+      "text": "欢迎来到词遇岛今天，谁来探险？选自己的名字，回到自己的小屋。\n    小小词岛探索队长小明同学完成 0 天 · 0 位伙伴→删除Abcdefghijkl完成 0 天 · 0 位伙伴→删除小乐完成 0 天 · 0 位伙伴→"
+    },
+    {
+      "label": "profiles-768x1024",
+      "viewport": [
+        768,
+        1024
+      ],
+      "scrollY": 0,
+      "scrollWidth": 768,
+      "bounds": {
+        "x": 109,
+        "y": 143.5625,
+        "width": 550,
+        "height": 736.875,
+        "bottom": 880.4375
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 735,
+        "client": 735
+      },
+      "text": "欢迎来到词遇岛今天，谁来探险？选自己的名字，回到自己的小屋。\n    小小词岛探索队长小明同学完成 0 天 · 0 位伙伴→删除Abcdefghijkl完成 0 天 · 0 位伙伴→删除小乐完成 0 天 · 0 位伙伴→"
+    },
+    {
+      "label": "profiles-844x390",
+      "viewport": [
+        844,
+        390
+      ],
+      "scrollY": 0,
+      "scrollWidth": 844,
+      "bounds": {
+        "x": 147,
+        "y": 23.40625,
+        "width": 550,
+        "height": 343.1875,
+        "bottom": 366.59375
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 735,
+        "client": 341
+      },
+      "text": "欢迎来到词遇岛今天，谁来探险？选自己的名字，回到自己的小屋。\n    小小词岛探索队长小明同学完成 0 天 · 0 位伙伴→删除Abcdefghijkl完成 0 天 · 0 位伙伴→删除小乐完成 0 天 · 0 位伙伴→"
+    },
+    {
+      "label": "profiles-1024x768",
+      "viewport": [
+        1024,
+        768
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1024,
+      "bounds": {
+        "x": 237,
+        "y": 46.078125,
+        "width": 550,
+        "height": 675.828125,
+        "bottom": 721.90625
+      },
+      "elementScroll": {
+        "top": 61,
+        "scroll": 735,
+        "client": 674
+      },
+      "text": "欢迎来到词遇岛今天，谁来探险？选自己的名字，回到自己的小屋。\n    小小词岛探索队长小明同学完成 0 天 · 0 位伙伴→删除Abcdefghijkl完成 0 天 · 0 位伙伴→删除小乐完成 0 天 · 0 位伙伴→"
+    },
+    {
+      "label": "afterReward375",
+      "viewport": [
+        375,
+        667
+      ],
+      "scrollY": 149,
+      "scrollWidth": 375,
+      "bounds": {
+        "x": 16,
+        "y": 155.5,
+        "width": 343,
+        "height": 356.25,
+        "bottom": 511.75
+      },
+      "elementScroll": {
+        "top": 0,
+        "scroll": 354,
+        "client": 354
+      },
+      "text": "\n          \n          \n          伙伴正在和你打招呼…\n          🌱小岛正在醒来…为你摆好小屋和冒险营地\n          暖暖小屋\n          🦊芽芽初到词遇岛 "
+    }
+  ],
+  "errors": [],
+  "failures": []
+}

@@ -1,5 +1,7 @@
 /* Runtime files must be versioned together when the app or models change. */
-const VERSION = 'v0.1.2';
+const VERSION = 'v0.6.2';
+importScripts('./assets/audio/precache.js');
+importScripts('./assets/companions-precache.js');
 const SCOPE = self.registration.scope;
 const PREFIX = `word-island:${SCOPE}`;
 const SHELL_CACHE = `${PREFIX}shell:${VERSION}`;
@@ -19,19 +21,29 @@ const CORE_URLS = [
   'src/storage.js',
   'src/learning.js',
   'src/content.js',
+  'src/kb3.js',
+  'src/practice.js',
+  'src/story.js',
+  'src/companions.js',
+  'src/companion-view.js',
+  'src/speech-audio.js',
+  'src/profiles.js',
+  'assets/companions-precache.js',
+  'assets/audio/precache.js',
   'vendor/three.module.js',
   'vendor/three.core.js',
   'vendor/OrbitControls.js',
   'vendor/loaders/GLTFLoader.js',
   'vendor/utils/BufferGeometryUtils.js',
-  ...['milk','rice','chicken','fish','chips','fruit','meat','breakfast','lunch','dinner'].map(word=>`assets/audio/word-${word}.m4a`),
-  ...['rice-please','fish-and-chips','milk-breakfast'].map(phrase=>`assets/audio/phrase-${phrase}.m4a`),
+  ...self.WORD_ISLAND_AUDIO_FILES,
 ].map(absolute);
 const MODELS = [
   'assets/models/home.glb',
   'assets/models/camp.glb',
   'assets/models/hero.glb',
-  'assets/models/bunny.glb',
+  'assets/models/child.glb',
+  'assets/models/child-portrait.png',
+  ...self.WORD_ISLAND_COMPANION_FILES,
 ];
 const MODEL_URLS = new Set(MODELS.map(absolute));
 const CORE_SET = new Set(CORE_URLS);

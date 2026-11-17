@@ -1,31 +1,37 @@
 import * as THREE from '../vendor/three.module.js';
 import { OrbitControls } from '../vendor/OrbitControls.js';
 import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js';
+import { COMPANIONS } from './companions.js';
 
 const SCENES = {
   home: {
     camera: [9, 8, 11], target: [0, 1.35, 0], span: 14,
-    hero: [-0.5, 0.08, 1.25], bunny: [2.6, 0.31, 1.3],
+    hero: [-0.5, 0.08, 1.25], guide: [.85, .08, .1], bunny: [2.6, 0.31, 1.3],
     interactions: ['home.door', 'home.bookshelf', 'home.clues'],
   },
   camp: {
     camera: [8, 8, 10], target: [0, 1, 0], span: 12.3,
-    hero: [-0.4, 0.055, 1.3], bunny: [-1.6, 0.055, 2.2],
+    hero: [-.25, 0.055, 1.3], guide: [-2.8, .055, 2.65], bunny: [-1.6, 0.055, 2.2],
     interactions: ['camp.crate', 'camp.sign', 'camp.mailbox', 'camp.chest'],
   },
 };
-const ASSET_NAMES = ['home', 'camp', 'hero', 'bunny'];
+const ASSET_FILES = {home:'assets/models/home.glb',camp:'assets/models/camp.glb',hero:'assets/models/hero.glb',child:'assets/models/child.glb',...Object.fromEntries(COMPANIONS.map(pet=>[pet.id,pet.modelFile]))};
+const ASSET_NAMES = Object.keys(ASSET_FILES);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 export class WorldView {
-  constructor(container, { onInteract = () => {}, onReady = () => {}, onError = () => {} } = {}) {
+  constructor(container, { onInteract = () => {}, onReady = () => {}, onError = () => {}, onFrame = () => {} } = {}) {
     this.container = container;
     this.onInteract = onInteract;
     this.onReady = onReady;
     this.onError = onError;
+    this.onFrame = onFrame;
     this.currentScene = 'home';
     this._unlocked = false;
+    this._unlockedIds = new Set();
+    this._playerName = '小探险家';
+    this._active = true;
     this._disposed = false;
     this._loaded = false;
     this._raf = 0;
@@ -33,6 +39,8 @@ export class WorldView {
     this._lastNow = 0;
     this._lastInteractionAt = -Infinity;
     this._lastShadowAt = -Infinity;
+    this._inViewport = typeof IntersectionObserver !== 'function';
+    this._pausedAt = null;
     this._pointers = new Map();
     this._interactionNodes = new Map();
     this._actors = [];
@@ -96,6 +104,7 @@ export class WorldView {
     this.controls.enableDamping = !this._reducedMotion;
     this._motionChanged = (event) => {
       this._reducedMotion = event.matches;
+      this._lastNow = 0;
       this.controls.enableDamping = !event.matches;
       if (event.matches) {
         this._celebration = null;
@@ -104,14 +113,17 @@ export class WorldView {
       this._invalidate();
     };
     this._motionQuery.addEventListener('change', this._motionChanged);
-    this._visibilityChanged = () => {
-      this._lastNow = 0;
-      if (document.hidden) {
-        cancelAnimationFrame(this._raf);
-        this._raf = 0;
-      } else this._invalidate();
-    };
+    this._visibilityChanged = () => this._syncVisibility();
     document.addEventListener('visibilitychange', this._visibilityChanged);
+    if (typeof IntersectionObserver === 'function') {
+      this._viewportObserver = new IntersectionObserver((entries) => {
+        const entry = entries.find(item => item.target === this.container);
+        if (!entry || this._disposed) return;
+        this._inViewport = entry.isIntersecting;
+        this._syncVisibility();
+      });
+      this._viewportObserver.observe(this.container);
+    }
     this._controlChanged = () => this._invalidate();
     this._controlStarted = () => { this._cameraTween = null; };
     this.controls.addEventListener('change', this._controlChanged);
@@ -137,7 +149,7 @@ export class WorldView {
     const loader = new GLTFLoader();
     const models = await Promise.all(ASSET_NAMES.map(async (name) => {
       try {
-        const model = await loader.loadAsync(new URL(`../assets/models/${name}.glb`, import.meta.url).href);
+        const model = await loader.loadAsync(new URL(`../${ASSET_FILES[name]}`, import.meta.url).href);
         if (this._disposed) this._disposeObject(model.scene);
         return model;
       } catch (error) { throw new Error(`无法加载${name}三维模型：${error.message}`); }
@@ -163,11 +175,16 @@ export class WorldView {
       if (!geometry) throw new Error(`三维互动缺少真实物件：${id}`);
     }
     this.scene.add(this._roots.home, this._roots.camp);
-    for (const [name, scale] of [['hero', 0.85], ['bunny', 0.8]]) {
-      const model = this._roots[name];
+    for (const [name, asset, scale] of [['hero','child',.85],['guide','hero',.65], ...COMPANIONS.map(pet=>[pet.id,pet.id,pet.scale])]) {
+      const model = this._roots[asset];
       const group = new THREE.Group();
       group.name = `${name}-placement`;
-      if (name === 'bunny') this._interactionNodes.set('home.bunny', group);
+      if (name === 'hero' || name === 'guide') {
+        group.userData.interactionId = `character.${name}`;
+        this._interactionNodes.set(`character.${name}`, group);
+      } else {
+        this._interactionNodes.set(`home.${name}`, group);
+      }
       group.scale.setScalar(scale);
       group.add(model);
       this.scene.add(group);
@@ -177,12 +194,21 @@ export class WorldView {
         if (object.userData.role === 'head' && object.children.length) head = object;
         if (object.userData.role === 'tail' && object.children.length) tail = object;
       });
-      const clips = models[ASSET_NAMES.indexOf(name)].animations;
+      const clips = models[ASSET_NAMES.indexOf(asset)].animations;
       const mixer = clips.length ? new THREE.AnimationMixer(model) : null;
       if (mixer) { mixer.clipAction(clips[0]).play(); mixer.setTime(0); }
-      this._actors.push({ name, group, model, scale: model.scale.clone(), placementScale: scale, mixer, head, tail,
-        headRotation: head?.quaternion.clone(), tailRotation: tail?.quaternion.clone() });
+      this.scene.updateMatrixWorld(true);
+      const headBox = new THREE.Box3().setFromObject(head || model);
+      const headTop = headBox.getCenter(new THREE.Vector3());
+      headTop.y = headBox.max.y + 0.16;
+      const speechAnchor = new THREE.Object3D();
+      const anchorParent = head || group;
+      speechAnchor.position.copy(anchorParent.worldToLocal(headTop));
+      anchorParent.add(speechAnchor);
+      this._actors.push({ name, modelAsset:asset, displayName:name==='hero'?this._playerName:name==='guide'?'芽芽':COMPANIONS.find(pet=>pet.id===name).name, group, model, scale: model.scale.clone(), placementScale: scale, mixer, head, tail,
+        speechAnchor, headRotation: head?.quaternion.clone(), tailRotation: tail?.quaternion.clone() });
     }
+    this.setPlayerName(this._playerName);
     this.setScene(this.currentScene);
   }
 
@@ -193,14 +219,7 @@ export class WorldView {
     if (this._roots) {
       this._roots.home.visible = name === 'home';
       this._roots.camp.visible = name === 'camp';
-      for (const actor of this._actors) {
-        actor.group.position.fromArray(SCENES[name][actor.name]);
-        actor.group.visible = actor.name === 'hero' || this._unlocked;
-        if (actor.name === 'bunny') {
-          if (name === 'home') actor.group.userData.interactionId = 'home.bunny';
-          else delete actor.group.userData.interactionId;
-        }
-      }
+      this._placeActors();
       this._appliedScene = name;
     }
     this._pointers.clear();
@@ -209,10 +228,42 @@ export class WorldView {
   }
 
   setCompanionUnlocked(unlocked) {
-    this._unlocked = Boolean(unlocked);
-    const bunny = this._actors.find((actor) => actor.name === 'bunny');
-    if (bunny) bunny.group.visible = this._unlocked;
+    this.setCompanionsUnlocked(unlocked ? ['bunny'] : []);
+  }
+
+  setCompanionsUnlocked(ids) {
+    if(!Array.isArray(ids)||ids.some(id=>!COMPANIONS.some(pet=>pet.id===id)))throw new Error('伙伴列表无效。');
+    const next=new Set(ids);
+    if(next.size===this._unlockedIds.size&&[...next].every(id=>this._unlockedIds.has(id)))return;
+    this._unlockedIds=next;
+    this._unlocked=next.has('bunny');
+    this._placeActors();
     this._invalidate();
+  }
+
+  _placeActors() {
+    for(const actor of this._actors) {
+      if(actor.name==='hero'||actor.name==='guide') {actor.group.position.fromArray(SCENES[this.currentScene][actor.name]);actor.group.visible=true;continue;}
+      const pet=COMPANIONS.find(item=>item.id===actor.name);
+      actor.group.position.fromArray(this.currentScene==='home'?pet.home:actor.name==='bunny'?SCENES.camp.bunny:pet.home);
+      actor.group.visible=this._unlockedIds.has(actor.name)&&(this.currentScene==='home'||actor.name==='bunny');
+      if(this.currentScene==='home')actor.group.userData.interactionId=`home.${actor.name}`;
+      else delete actor.group.userData.interactionId;
+    }
+  }
+
+  setPlayerName(name) {
+    if(typeof name!=='string')throw new Error('小朋友的名字无效。');
+    this._playerName=name.trim()||'小探险家';
+    const hero=this._actors.find(actor=>actor.name==='hero');
+    if(hero){hero.displayName=this._playerName;hero.group.userData.characterName=this._playerName;hero.model.userData.characterName=this._playerName;}
+    this.canvas?.setAttribute('aria-label',`词遇岛三维世界；主角${this._playerName}和向导芽芽；轻点物件互动，拖动旋转，双指缩放。`);
+  }
+
+  setActive(active) {
+    if(this._active===Boolean(active))return;
+    this._active=Boolean(active);
+    this._syncVisibility();
   }
 
   _resize() {
@@ -320,6 +371,24 @@ export class WorldView {
     return { visible: false, interactionId: id };
   }
 
+  // Bubble coordinates are local to the stage, independent of document scroll.
+  getActorScreenPoint(name) {
+    if (this._disposed) return null;
+    const actor = this._actors.find(item => item.name === name);
+    if (!actor) return null;
+    if (!this._isVisible(actor.group)) return { name, visible: false };
+    this.camera.updateMatrixWorld(true);
+    const point = actor.speechAnchor.getWorldPosition(new THREE.Vector3()).project(this.camera);
+    const canvas = this.canvas.getBoundingClientRect();
+    const stage = this.container.getBoundingClientRect();
+    return {
+      name,
+      x: canvas.left - stage.left + (point.x + 1) * canvas.width / 2,
+      y: canvas.top - stage.top + (1 - point.y) * canvas.height / 2,
+      visible: canvas.width > 0 && canvas.height > 0 && point.z >= -1 && point.z <= 1 && Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1,
+    };
+  }
+
   _onPointerDown(event) {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     const multi = this._pointers.size > 0;
@@ -350,14 +419,38 @@ export class WorldView {
     } catch (error) { this.onError(error); }
   }
 
+  _canRender() {
+    return this._loaded && this._active && !this._disposed && !document.hidden && this._inViewport && !this._error;
+  }
+
+  _syncVisibility() {
+    if (this._disposed) return;
+    this._lastNow = 0;
+    cancelAnimationFrame(this._raf);
+    this._raf = 0;
+    const now = performance.now();
+    if (!this._active || document.hidden || !this._inViewport) {
+      this._pausedAt ??= now;
+      return;
+    }
+    // Keep an in-progress focus move from jumping to its end after a long pause.
+    if (this._pausedAt !== null && this._cameraTween) {
+      this._cameraTween.start += now - Math.max(this._pausedAt, this._cameraTween.start);
+    }
+    this._pausedAt = null;
+    this._measuredAt = now;
+    this._frames = 0;
+    this._invalidate();
+  }
+
   _invalidate() {
-    if (!this._loaded || this._disposed || document.hidden || this._error || this._raf) return;
+    if (!this._canRender() || this._raf) return;
     this._raf = requestAnimationFrame((now) => this._frame(now));
   }
 
   _frame(now) {
     this._raf = 0;
-    if (this._disposed || document.hidden || this._error) return;
+    if (!this._canRender()) return;
     const delta = this._lastNow ? Math.min((now - this._lastNow) / 1000, 0.05) : 0;
     this._lastNow = now;
     this._elapsed += delta;
@@ -397,6 +490,7 @@ export class WorldView {
       this._lastShadowAt = now;
     }
     this.renderer.render(this.scene, this.camera);
+    this.onFrame(this);
     this._frames += 1;
     if (now - this._measuredAt > 1000) {
       this._stats = { fps: Math.round(this._frames * 1000 / (now - this._measuredAt)),
@@ -409,9 +503,9 @@ export class WorldView {
 
   getDiagnostics() {
     return { ready: this._loaded, scene: this.currentScene, models: this._roots ? Object.keys(this._roots) : [],
-      interactions: [...this._interactionNodes.keys()], companionUnlocked: this._unlocked,
-      reducedMotion: this._reducedMotion, error: this._error || null, ...this._stats,
-      actors: this._actors.map((actor) => ({ name: actor.name, visible: actor.group.visible,
+      interactions: [...this._interactionNodes.keys()], companionUnlocked: this._unlocked,unlockedCompanions:[...this._unlockedIds],active:this._active,playerName:this._playerName,
+      reducedMotion: this._reducedMotion, visibleInViewport: this._inViewport, error: this._error || null, ...this._stats,
+      actors: this._actors.map((actor) => ({ name: actor.name, modelAsset:actor.modelAsset, displayName:actor.displayName, visible: actor.group.visible,
         position: actor.group.position.toArray(), scale: actor.model.scale.toArray(),
         headRotation: actor.head?.quaternion.toArray() || null, animationTime: actor.mixer?.time || 0 })) };
   }
@@ -432,7 +526,10 @@ export class WorldView {
     if (this._disposed) return;
     this._disposed = true;
     cancelAnimationFrame(this._raf);
+    this._raf = 0;
+    this._lastNow = 0;
     this._resizeObserver?.disconnect();
+    this._viewportObserver?.disconnect();
     document.removeEventListener('visibilitychange', this._visibilityChanged);
     this._motionQuery?.removeEventListener('change', this._motionChanged);
     for (const [type, listener] of Object.entries(this._listeners || {})) this.canvas?.removeEventListener(type, listener);

@@ -1,0 +1,37 @@
+{
+  "source": "优化前的本地 Daniel 合成示范；非教材原音。",
+  "voice": "Daniel",
+  "wordsPerMinute": 145,
+  "clips": [
+    {
+      "id": "word-playground",
+      "key": "word:playground",
+      "text": "playground",
+      "kind": "word",
+      "file": "word-playground.m4a",
+      "bytes": 10802,
+      "durationSeconds": 0.917188,
+      "sha256": "a31d2798bb675daa32a6cea25019ca9812af224e0dcaa1610c8fb370039b9a2b"
+    },
+    {
+      "id": "phrase-kb3-hello-1",
+      "key": "phrase:kb3-hello-1",
+      "text": "I can ride a bike.",
+      "kind": "phrase",
+      "file": "phrase-kb3-hello-1.m4a",
+      "bytes": 13493,
+      "durationSeconds": 1.305714,
+      "sha256": "74de8fecb51cc3a2841259d5febab2a68459a45d27c7262e78685e3da6541181"
+    },
+    {
+      "id": "phrase-kb3-u8-2",
+      "key": "phrase:kb3-u8-2",
+      "text": "It was windy yesterday.",
+      "kind": "phrase",
+      "file": "phrase-kb3-u8-2.m4a",
+      "bytes": 14529,
+      "durationSeconds": 1.557914,
+      "sha256": "4f5a4ab487443301bd0a2f8d0c3657f54121b5b212d012d8dc22c3fc5f7d3186"
+    }
+  ]
+}

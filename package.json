@@ -1,6 +1,6 @@
 {
   "name": "word-island",
-  "version": "0.1.0",
+  "version": "0.6.2",
   "private": true,
   "type": "module",
   "description": "词遇岛：在单词里冒险，和伙伴一起长大。",

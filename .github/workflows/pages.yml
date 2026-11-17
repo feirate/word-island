@@ -39,7 +39,7 @@ jobs:
           cp -R src vendor icons _site/
           find assets -type f \( \
             -name '*.glb' -o -name '*.gltf' -o -name '*.bin' -o \
-            -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o \
+            -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.js' -o \
             -name '*.webp' -o -name '*.svg' -o -name '*.ktx2' -o \
             -name '*.mp3' -o -name '*.m4a' -o -name '*.wav' -o \
             -name '*.ogg' -o -name '*.json' \
