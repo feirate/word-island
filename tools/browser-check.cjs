@@ -18,6 +18,7 @@ fs.mkdirSync(out,{recursive:true});
   const state=()=>page.evaluate(()=>window.__wordIsland.getState());
   const ready=async()=>{await chooseTestProfile(page);await page.waitForFunction(()=>window.__wordIsland?.world.getDiagnostics().ready,{timeout:30000});await page.locator('#world-loading').waitFor({state:'hidden'});};
   const pick=async id=>{
+    await page.waitForFunction(id=>window.__wordIsland.world.getObjectScreenPoint(id)?.visible,id);
     const point=await page.evaluate(id=>window.__wordIsland.world.getObjectScreenPoint(id),id);
     assert(point?.visible,`${id} must be visible and actually hit`);
     await page.waitForTimeout(500);
@@ -25,7 +26,7 @@ fs.mkdirSync(out,{recursive:true});
   };
   try{
     await page.goto(base);await ready();
-    assert.deepEqual((await page.evaluate(()=>window.__wordIsland.getDiagnostics())).models,['home','camp','hero','child','bunny','squirrel','cat','dog','hedgehog','turtle','raccoon','fox']);
+    assert.deepEqual((await page.evaluate(()=>window.__wordIsland.getDiagnostics())).models.sort(),['child','hero','home'],'the first home should require only its scene, child and guide');
     await page.screenshot({path:path.join(out,'app-home.png'),fullPage:true});
     await pick('home.bookshelf');assert.equal((await state()).phase,'books');
     await page.locator('[data-nav="home"]').first().click();
@@ -106,6 +107,6 @@ fs.mkdirSync(out,{recursive:true});
     }
     const diagnostics=await page.evaluate(()=>window.__wordIsland.getDiagnostics());
     assert.deepEqual(errors,[]);assert.deepEqual(failures,[]);
-    console.log(JSON.stringify({passed:['twelve real GLBs including child, guide and eight companions','real 3D click targets','incomplete tasks cannot earn clue','listen retry','spelling retry and Enter','mock microphone recording and IndexedDB playback','daily reward persistence','demo isolation and seven-clue companion','JSON export and reviewed import','IndexedDB successful write/read','all models reload offline','390/768px four-page layouts'],diagnostics,screenshots:out}));
+    console.log(JSON.stringify({passed:['three essential home GLBs before optional models','real 3D click targets','incomplete tasks cannot earn clue','listen retry','spelling retry and Enter','mock microphone recording and IndexedDB playback','daily reward persistence','demo isolation and seven-clue companion','JSON export and reviewed import','IndexedDB successful write/read','all required models reload offline','390/768px four-page layouts'],diagnostics,screenshots:out}));
   }finally{await context.close();await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,6 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
 import { OrbitControls } from '../vendor/OrbitControls.js';
-import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js';
+import { loadModel } from './model-loader.js';
 import { COMPANIONS } from './companions.js';
 
 const SCENES = {
@@ -17,16 +17,32 @@ const SCENES = {
 };
 const ASSET_FILES = {home:'assets/models/home.glb',camp:'assets/models/camp.glb',hero:'assets/models/hero.glb',child:'assets/models/child.glb',...Object.fromEntries(COMPANIONS.map(pet=>[pet.id,pet.modelFile]))};
 const ASSET_NAMES = Object.keys(ASSET_FILES);
+const CORE_ASSETS = ['home', 'hero', 'child'];
+const ACTOR_NAMES = ['hero', 'guide', ...COMPANIONS.map(pet => pet.id)];
+const ASSET_LABELS = {home:'小屋',camp:'探险营地',hero:'向导芽芽',child:'小探险家',...Object.fromEntries(COMPANIONS.map(pet=>[pet.id,pet.name]))};
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 export class WorldView {
-  constructor(container, { onInteract = () => {}, onReady = () => {}, onError = () => {}, onFrame = () => {} } = {}) {
+  constructor(container, { onInteract = () => {}, onReady = () => {}, onError = () => {}, onFrame = () => {}, onLoading = () => {}, onSceneReady = () => {}, onAssetError = () => {}, modelTimeoutMs = 30000 } = {}) {
     this.container = container;
     this.onInteract = onInteract;
     this.onReady = onReady;
     this.onError = onError;
     this.onFrame = onFrame;
+    this.onLoading = onLoading;
+    this.onSceneReady = onSceneReady;
+    this.onAssetError = onAssetError;
+    this._modelTimeoutMs = modelTimeoutMs;
+    this._roots = {};
+    this._assetTasks = new Map();
+    this._assetErrors = new Map();
+    this._sceneLoads = new Map();
+    this._loadQueue = [];
+    this._runningLoads = 0;
+    this._sceneReady = false;
+    this._notifiedScene = null;
+    this._didNotifyReady = false;
     this.currentScene = 'home';
     this._unlocked = false;
     this._unlockedIds = new Set();
@@ -52,13 +68,10 @@ export class WorldView {
     this._measuredAt = 0;
     this.ready = this._initialize().then(() => {
       if (this._disposed) throw new Error('三维视图已关闭。');
-      this._loaded = true;
-      this._invalidate();
-      this.onReady(this);
+      this._finishCore();
       return this;
     }).catch((error) => {
-      this._error = error.message;
-      if (!this._disposed) this.onError(error);
+      if (!this._disposed) this._reportError(error);
       throw error;
     });
   }
@@ -113,7 +126,7 @@ export class WorldView {
       this._invalidate();
     };
     this._motionQuery.addEventListener('change', this._motionChanged);
-    this._visibilityChanged = () => this._syncVisibility();
+    this._visibilityChanged = () => { this._syncVisibility(); this._drainLoads(); };
     document.addEventListener('visibilitychange', this._visibilityChanged);
     if (typeof IntersectionObserver === 'function') {
       this._viewportObserver = new IntersectionObserver((entries) => {
@@ -135,6 +148,7 @@ export class WorldView {
       pointercancel: (event) => this._pointers.delete(event.pointerId),
       webglcontextlost: (event) => {
         event.preventDefault();
+        this._contextLost = true;
         this._error = '三维画面暂时中断，请重新打开页面。';
         cancelAnimationFrame(this._raf);
         this._raf = 0;
@@ -146,107 +160,270 @@ export class WorldView {
     this._resizeObserver.observe(this.container);
     this.resetCamera();
 
-    const loader = new GLTFLoader();
-    const models = await Promise.all(ASSET_NAMES.map(async (name) => {
-      try {
-        const model = await loader.loadAsync(new URL(`../${ASSET_FILES[name]}`, import.meta.url).href);
-        if (this._disposed) this._disposeObject(model.scene);
-        return model;
-      } catch (error) { throw new Error(`无法加载${name}三维模型：${error.message}`); }
-    }));
-    if (this._disposed) return;
-    this._roots = Object.fromEntries(models.map((model, index) => [ASSET_NAMES[index], model.scene]));
-    for (const root of Object.values(this._roots)) {
-      root.traverse((object) => {
-        if (object.isMesh) { object.castShadow = true; object.receiveShadow = true; }
-        const id = object.userData.interactionId;
-        // The empty arrival cushion is scenery; only the unlocked animal speaks as the companion.
-        if (id === 'home.bunny') { delete object.userData.interactionId; return; }
-        if (typeof id === 'string') {
-          if (this._interactionNodes.has(id)) throw new Error(`三维互动标识重复：${id}`);
-          this._interactionNodes.set(id, object);
-        }
-      });
+    await Promise.all(CORE_ASSETS.map(name => this._requestAsset(name, 0)));
+  }
+
+  _requestAsset(name, priority, retry = false) {
+    if (this._roots[name]) return Promise.resolve(this._roots[name]);
+    if (this._disposed) return Promise.reject(new Error('三维视图已关闭。'));
+    const existing = this._assetTasks.get(name);
+    if (existing) { existing.priority = Math.min(priority, existing.priority); return existing.promise; }
+    if (this._assetErrors.has(name) && !retry) return Promise.reject(this._assetErrors.get(name));
+    this._assetErrors.delete(name);
+    const task = { name, priority, controller: new AbortController(), running: false, cancelled: false };
+    task.promise = new Promise((resolve, reject) => { task.resolve = resolve; task.reject = reject; });
+    // A caller may stop waiting after changing scenes or profiles.
+    task.promise.catch(() => {});
+    this._assetTasks.set(name, task);
+    this._loadQueue.push(task);
+    this._reportLoading();
+    this._drainLoads();
+    return task.promise;
+  }
+
+  _drainLoads() {
+    if (this._disposed || document.hidden) return;
+    this._loadQueue.sort((a, b) => a.priority - b.priority);
+    while (this._runningLoads < 2) {
+      // Keep one network slot available for a scene change while companions arrive.
+      const companionRunning = [...this._assetTasks.values()].some(task => task.running && task.priority > 0);
+      const index = this._loadQueue.findIndex(task => !task.cancelled && (task.priority === 0 || !companionRunning));
+      if (index < 0) return;
+      const task = this._loadQueue.splice(index, 1)[0];
+      task.running = true;
+      this._runningLoads += 1;
+      this._runLoad(task);
     }
-    for (const id of Object.values(SCENES).flatMap((scene) => scene.interactions)) {
-      const object = this._interactionNodes.get(id);
+  }
+
+  async _runLoad(task) {
+    try {
+      const model = await loadModel(new URL(`../${ASSET_FILES[task.name]}`, import.meta.url).href, {
+        signal: task.controller.signal, timeoutMs: this._modelTimeoutMs,
+        onProgress: () => { if (!task.cancelled) this._reportLoading(); },
+      });
+      if (this._disposed || task.cancelled) {
+        this._disposeObject(model.scene);
+        throw new Error('三维模型加载已取消。');
+      }
+      this._registerAsset(task.name, model);
+      task.resolve(this._roots[task.name]);
+    } catch (cause) {
+      const error = new Error(`无法加载${ASSET_LABELS[task.name]}三维模型：${cause.message}`);
+      if (!this._disposed && !task.cancelled) {
+        this._assetErrors.set(task.name, error);
+        if (task.priority > 0) this.onAssetError(error, { id: task.name });
+      }
+      task.reject(error);
+    } finally {
+      this._runningLoads -= 1;
+      if (this._assetTasks.get(task.name) === task) this._assetTasks.delete(task.name);
+      this._refreshScene();
+      this._reportLoading();
+      this._drainLoads();
+    }
+  }
+
+  _registerAsset(name, gltf) {
+    const root = gltf.scene;
+    const interactionNodes = new Map();
+    root.traverse((object) => {
+      if (object.isMesh) { object.castShadow = true; object.receiveShadow = true; }
+      if (!SCENES[name]) return;
+      const id = object.userData.interactionId;
+      // The empty arrival cushion is scenery; only an unlocked animal speaks.
+      if (id === 'home.bunny') { delete object.userData.interactionId; return; }
+      if (typeof id === 'string') {
+        if (this._interactionNodes.has(id) || interactionNodes.has(id)) throw new Error(`三维互动标识重复：${id}`);
+        interactionNodes.set(id, object);
+      }
+    });
+    for (const id of SCENES[name]?.interactions || []) {
       let geometry = false;
-      object?.traverse((node) => { if (node.isMesh && node.geometry?.attributes.position?.count) geometry = true; });
+      interactionNodes.get(id)?.traverse(node => { if (node.isMesh && node.geometry?.attributes.position?.count) geometry = true; });
       if (!geometry) throw new Error(`三维互动缺少真实物件：${id}`);
     }
-    this.scene.add(this._roots.home, this._roots.camp);
-    for (const [name, asset, scale] of [['hero','child',.85],['guide','hero',.65], ...COMPANIONS.map(pet=>[pet.id,pet.id,pet.scale])]) {
-      const model = this._roots[asset];
-      const group = new THREE.Group();
-      group.name = `${name}-placement`;
-      if (name === 'hero' || name === 'guide') {
-        group.userData.interactionId = `character.${name}`;
-        this._interactionNodes.set(`character.${name}`, group);
-      } else {
-        this._interactionNodes.set(`home.${name}`, group);
-      }
-      group.scale.setScalar(scale);
-      group.add(model);
-      this.scene.add(group);
-      let head = null, tail = null;
-      model.traverse((object) => {
-        // Only rotate linked control groups, never isolated facial meshes.
-        if (object.userData.role === 'head' && object.children.length) head = object;
-        if (object.userData.role === 'tail' && object.children.length) tail = object;
-      });
-      const clips = models[ASSET_NAMES.indexOf(asset)].animations;
-      const mixer = clips.length ? new THREE.AnimationMixer(model) : null;
-      if (mixer) { mixer.clipAction(clips[0]).play(); mixer.setTime(0); }
-      this.scene.updateMatrixWorld(true);
-      const headBox = new THREE.Box3().setFromObject(head || model);
-      const headTop = headBox.getCenter(new THREE.Vector3());
-      headTop.y = headBox.max.y + 0.16;
-      const speechAnchor = new THREE.Object3D();
-      const anchorParent = head || group;
-      speechAnchor.position.copy(anchorParent.worldToLocal(headTop));
-      anchorParent.add(speechAnchor);
-      this._actors.push({ name, modelAsset:asset, displayName:name==='hero'?this._playerName:name==='guide'?'芽芽':COMPANIONS.find(pet=>pet.id===name).name, group, model, scale: model.scale.clone(), placementScale: scale, mixer, head, tail,
-        speechAnchor, headRotation: head?.quaternion.clone(), tailRotation: tail?.quaternion.clone() });
-    }
+    this._roots[name] = root;
+    for (const [id, object] of interactionNodes) this._interactionNodes.set(id, object);
+    if (SCENES[name]) {
+      root.visible = false;
+      this.scene.add(root);
+    } else this._createActor(name, gltf);
+    this._refreshScene();
+  }
+
+  _createActor(asset, gltf) {
+    const name = asset === 'child' ? 'hero' : asset === 'hero' ? 'guide' : asset;
+    const pet = COMPANIONS.find(item => item.id === name);
+    const scale = name === 'hero' ? .85 : name === 'guide' ? .65 : pet.scale;
+    const model = gltf.scene;
+    const group = new THREE.Group();
+    group.name = `${name}-placement`;
+    if (name === 'hero' || name === 'guide') group.userData.interactionId = `character.${name}`;
+    this._interactionNodes.set(pet ? `home.${name}` : `character.${name}`, group);
+    group.scale.setScalar(scale);
+    group.add(model);
+    this.scene.add(group);
+    let head = null, tail = null;
+    model.traverse((object) => {
+      // Only rotate linked control groups, never isolated facial meshes.
+      if (object.userData.role === 'head' && object.children.length) head = object;
+      if (object.userData.role === 'tail' && object.children.length) tail = object;
+    });
+    const mixer = gltf.animations.length ? new THREE.AnimationMixer(model) : null;
+    if (mixer) { mixer.clipAction(gltf.animations[0]).play(); mixer.setTime(0); }
+    this.scene.updateMatrixWorld(true);
+    const headBox = new THREE.Box3().setFromObject(head || model);
+    const headTop = headBox.getCenter(new THREE.Vector3());
+    headTop.y = headBox.max.y + 0.16;
+    const speechAnchor = new THREE.Object3D();
+    const anchorParent = head || group;
+    speechAnchor.position.copy(anchorParent.worldToLocal(headTop));
+    anchorParent.add(speechAnchor);
+    this._actors.push({ name, modelAsset: asset, displayName: name === 'hero' ? this._playerName : name === 'guide' ? '芽芽' : pet.name,
+      group, model, scale: model.scale.clone(), placementScale: scale, mixer, head, tail, speechAnchor,
+      headRotation: head?.quaternion.clone(), tailRotation: tail?.quaternion.clone() });
+    this._actors.sort((a, b) => ACTOR_NAMES.indexOf(a.name) - ACTOR_NAMES.indexOf(b.name));
     this.setPlayerName(this._playerName);
-    this.setScene(this.currentScene);
+  }
+
+  _finishCore() {
+    if (this._contextLost) throw new Error(this._error);
+    this._loaded = true;
+    this._error = null;
+    this._errorAsset = null;
+    this._refreshScene(false);
+    if (!this._didNotifyReady) { this._didNotifyReady = true; this.onReady(this); }
+    this._notifyScene();
+    if (!this._sceneReady) this._ensureScene().catch(() => {});
+    this._loadCompanions();
+  }
+
+  _refreshScene(notify = true) {
+    if (this._disposed) return;
+    this._sceneReady = this._loaded && Boolean(this._roots[this.currentScene]);
+    for (const [name, root] of Object.entries(this._roots)) if (SCENES[name]) root.visible = name === this.currentScene;
+    this._placeActors();
+    if (this._loaded && notify) this._notifyScene();
+    this._invalidate();
+  }
+
+  _notifyScene() {
+    if (this._sceneReady && !this._error) {
+      this._lastLoadingKey = null;
+      if (this._notifiedScene !== this.currentScene) {
+        this._notifiedScene = this.currentScene;
+        this.onSceneReady({ scene: this.currentScene });
+      }
+    } else this._reportLoading();
+  }
+
+  _reportLoading() {
+    if (this._disposed || this._sceneReady || this._error) return;
+    const required = this._loaded ? [this.currentScene] : CORE_ASSETS;
+    const loaded = required.filter(name => this._roots[name]).length;
+    const pending = required.find(name => !this._roots[name]);
+    const event = { scene: this.currentScene, loaded, total: required.length, label: `正在准备${ASSET_LABELS[pending] || '小岛'}…` };
+    const key = JSON.stringify(event);
+    if (this._lastLoadingKey === key) return;
+    this._lastLoadingKey = key;
+    this.onLoading(event);
+  }
+
+  _reportError(error, asset = null) {
+    this._lastLoadingKey = null;
+    this._error = error.message;
+    this._errorAsset = asset;
+    this._syncVisibility();
+    this.onError(error);
+  }
+
+  _ensureScene(retry = false) {
+    const name = this.currentScene;
+    if (this._sceneLoads.has(name)) return this._sceneLoads.get(name);
+    const promise = this._requestAsset(name, 0, retry).then(() => {
+      if (this.currentScene === name) {
+        if (this._errorAsset === name) { this._error = null; this._errorAsset = null; }
+        this._refreshScene();
+      }
+    }).catch(error => {
+      if (!this._disposed && this.currentScene === name) this._reportError(error, name);
+      throw error;
+    }).finally(() => { this._sceneLoads.delete(name); });
+    this._sceneLoads.set(name, promise);
+    return promise;
   }
 
   setScene(name) {
     if (!SCENES[name]) throw new Error(`未知场景：${name}`);
+    const changed = this.currentScene !== name;
     this.currentScene = name;
-    if (this._appliedScene === name) { this._invalidate(); return; }
-    if (this._roots) {
-      this._roots.home.visible = name === 'home';
-      this._roots.camp.visible = name === 'camp';
-      this._placeActors();
-      this._appliedScene = name;
+    if (changed) {
+      this._notifiedScene = null;
+      if (this._errorAsset) { this._error = null; this._errorAsset = null; }
+      this._pointers.clear();
+      this._celebration = null;
+      this.resetCamera();
     }
-    this._pointers.clear();
-    this._celebration = null;
-    this.resetCamera();
+    this._refreshScene();
+    if (!this._loaded) return this.ready.then(() => this._ensureScene()).catch(() => {});
+    if (this._roots[name]) return Promise.resolve();
+    if (this._assetErrors.has(name)) {
+      if (this._errorAsset !== name) this._reportError(this._assetErrors.get(name), name);
+      return Promise.resolve();
+    }
+    return this._ensureScene().catch(() => {});
   }
 
   setCompanionUnlocked(unlocked) {
-    this.setCompanionsUnlocked(unlocked ? ['bunny'] : []);
+    return this.setCompanionsUnlocked(unlocked ? ['bunny'] : []);
   }
 
   setCompanionsUnlocked(ids) {
-    if(!Array.isArray(ids)||ids.some(id=>!COMPANIONS.some(pet=>pet.id===id)))throw new Error('伙伴列表无效。');
-    const next=new Set(ids);
-    if(next.size===this._unlockedIds.size&&[...next].every(id=>this._unlockedIds.has(id)))return;
-    this._unlockedIds=next;
-    this._unlocked=next.has('bunny');
+    if (!Array.isArray(ids) || ids.some(id => !COMPANIONS.some(pet => pet.id === id))) throw new Error('伙伴列表无效。');
+    const next = new Set(ids);
+    for (const [name, task] of this._assetTasks) {
+      if (task.priority === 0 || next.has(name)) continue;
+      task.cancelled = true;
+      task.controller.abort();
+      if (!task.running) task.reject(new Error('伙伴加载已取消。'));
+      this._assetTasks.delete(name);
+    }
+    this._loadQueue = this._loadQueue.filter(task => !task.cancelled);
+    this._unlockedIds = next;
+    this._unlocked = next.has('bunny');
     this._placeActors();
     this._invalidate();
+    if (!this._loaded) return this.ready.then(() => this._loadCompanions()).catch(() => []);
+    return this._loadCompanions();
+  }
+
+  _loadCompanions(retry = false) {
+    if (this._disposed || !this._loaded) return Promise.resolve([]);
+    return Promise.allSettled([...this._unlockedIds].map(id => this._requestAsset(id, 1, retry)));
+  }
+
+  async retryLoads() {
+    if (this._disposed || !this.renderer || this._contextLost) throw new Error(this._error || '请重新打开页面，再试一次。');
+    this._error = null;
+    this._errorAsset = null;
+    this._reportLoading();
+    if (!this._loaded) {
+      try { await Promise.all(CORE_ASSETS.map(name => this._requestAsset(name, 0, true))); }
+      catch (error) { this._reportError(error); throw error; }
+      this._finishCore();
+    }
+    await this._ensureScene(true);
+    await this._loadCompanions(true);
+    return this;
   }
 
   _placeActors() {
     for(const actor of this._actors) {
-      if(actor.name==='hero'||actor.name==='guide') {actor.group.position.fromArray(SCENES[this.currentScene][actor.name]);actor.group.visible=true;continue;}
+      if(actor.name==='hero'||actor.name==='guide') {actor.group.position.fromArray(SCENES[this.currentScene][actor.name]);actor.group.visible=this._sceneReady;continue;}
       const pet=COMPANIONS.find(item=>item.id===actor.name);
       actor.group.position.fromArray(this.currentScene==='home'?pet.home:actor.name==='bunny'?SCENES.camp.bunny:pet.home);
-      actor.group.visible=this._unlockedIds.has(actor.name)&&(this.currentScene==='home'||actor.name==='bunny');
+      actor.group.visible=this._sceneReady&&this._unlockedIds.has(actor.name)&&(this.currentScene==='home'||actor.name==='bunny');
       if(this.currentScene==='home')actor.group.userData.interactionId=`home.${actor.name}`;
       else delete actor.group.userData.interactionId;
     }
@@ -334,7 +511,7 @@ export class WorldView {
   }
 
   _pickAt(x, y) {
-    if (this._disposed) return null;
+    if (this._disposed || !this._sceneReady) return null;
     const rect = this.canvas.getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1 || x < rect.left || y < rect.top || x > rect.left + rect.width || y > rect.top + rect.height) return null;
     this._pointer.set((x - rect.left) / rect.width * 2 - 1, -(y - rect.top) / rect.height * 2 + 1);
@@ -420,7 +597,7 @@ export class WorldView {
   }
 
   _canRender() {
-    return this._loaded && this._active && !this._disposed && !document.hidden && this._inViewport && !this._error;
+    return this._loaded && this._sceneReady && this._active && !this._disposed && !document.hidden && this._inViewport && !this._error;
   }
 
   _syncVisibility() {
@@ -502,7 +679,8 @@ export class WorldView {
   }
 
   getDiagnostics() {
-    return { ready: this._loaded, scene: this.currentScene, models: this._roots ? Object.keys(this._roots) : [],
+    return { ready: this._loaded, scene: this.currentScene, sceneReady: this._sceneReady, models: ASSET_NAMES.filter(name => this._roots[name]),
+      loadingModels: [...this._assetTasks.keys()], assetErrors: Object.fromEntries([...this._assetErrors].map(([id,error]) => [id,error.message])),
       interactions: [...this._interactionNodes.keys()], companionUnlocked: this._unlocked,unlockedCompanions:[...this._unlockedIds],active:this._active,playerName:this._playerName,
       reducedMotion: this._reducedMotion, visibleInViewport: this._inViewport, error: this._error || null, ...this._stats,
       actors: this._actors.map((actor) => ({ name: actor.name, modelAsset:actor.modelAsset, displayName:actor.displayName, visible: actor.group.visible,
@@ -525,6 +703,9 @@ export class WorldView {
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
+    for (const task of this._assetTasks.values()) { task.cancelled = true; task.controller.abort(); if (!task.running) task.reject(new Error('三维视图已关闭。')); }
+    this._loadQueue = [];
+    this._assetTasks.clear();
     cancelAnimationFrame(this._raf);
     this._raf = 0;
     this._lastNow = 0;

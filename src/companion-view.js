@@ -1,13 +1,14 @@
 import * as THREE from '../vendor/three.module.js';
 import { OrbitControls } from '../vendor/OrbitControls.js';
-import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js';
+import { loadModel } from './model-loader.js';
 import { COMPANIONS } from './companions.js';
 
 // One shared WebGL view for the selected catalog entry, not one canvas per card.
 export class CompanionView {
-  constructor(container,{onReady=()=>{},onError=()=>{},onFrame=()=>{}}={}) {
+  constructor(container,{onReady=()=>{},onError=()=>{},onFrame=()=>{},modelTimeoutMs=30000}={}) {
     this.container=container;this.onReady=onReady;this.onError=onError;this.onFrame=onFrame;
     this._models=new Map();this._pending=new Map();this._selection=0;this._frames=0;
+    this._modelTimeoutMs=modelTimeoutMs;
     this._active=true;this._disposed=false;this._raf=0;this._lastNow=0;this._lastShadowAt=0;
     this._inViewport=typeof IntersectionObserver!=='function';
     this.ready=this._initialize().catch(error=>{this._error=error.message;if(!this._disposed)this.onError(error);throw error;});
@@ -48,9 +49,10 @@ export class CompanionView {
 
   async _load(pet) {
     if(this._models.has(pet.id))return this._models.get(pet.id);
-    if(this._pending.has(pet.id))return this._pending.get(pet.id);
-    const pending=(async()=>{
-      const gltf=await new GLTFLoader().loadAsync(new URL(`../${pet.modelFile}`,import.meta.url).href);
+    if(this._pending.has(pet.id))return this._pending.get(pet.id).promise;
+    const pending={controller:new AbortController(),promise:null};
+    pending.promise=(async()=>{
+      const gltf=await loadModel(new URL(`../${pet.modelFile}`,import.meta.url).href,{signal:pending.controller.signal,timeoutMs:this._modelTimeoutMs});
       const root=gltf.scene,materials=[],grayByOriginal=new Map();
       root.traverse(mesh=>{
         if(!mesh.isMesh)return;
@@ -75,7 +77,7 @@ export class CompanionView {
       root.visible=false;this.scene.add(root);this._models.set(pet.id,entry);return entry;
     })();
     this._pending.set(pet.id,pending);
-    try{return await pending;}finally{this._pending.delete(pet.id);}
+    try{return await pending.promise;}finally{if(this._pending.get(pet.id)===pending)this._pending.delete(pet.id);}
   }
 
   async setCompanion(id,unlocked=false) {
@@ -148,6 +150,8 @@ export class CompanionView {
 
   dispose() {
     if(this._disposed)return;this._disposed=true;this._selection+=1;cancelAnimationFrame(this._raf);this._raf=0;
+    for(const pending of this._pending.values())pending.controller.abort();
+    this._pending.clear();
     this._resizeObserver?.disconnect();this._viewportObserver?.disconnect();document.removeEventListener('visibilitychange',this._visibilityChanged);this._motionQuery?.removeEventListener('change',this._motionChanged);
     this.controls?.removeEventListener('change',this._changed);this.controls?.dispose();this.canvas?.removeEventListener('webglcontextlost',this._contextLost);
     for(const entry of this._models.values())this._disposeEntry(entry);

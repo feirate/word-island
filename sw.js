@@ -1,5 +1,5 @@
 /* Runtime files must be versioned together when the app or models change. */
-const VERSION = 'v0.6.2';
+const VERSION = 'v0.6.3';
 importScripts('./assets/audio/precache.js');
 importScripts('./assets/companions-precache.js');
 const SCOPE = self.registration.scope;
@@ -18,6 +18,7 @@ const CORE_URLS = [
   'src/styles.css',
   'src/app.js',
   'src/world.js',
+  'src/model-loader.js',
   'src/storage.js',
   'src/learning.js',
   'src/content.js',
@@ -68,11 +69,14 @@ self.addEventListener('activate', (event) => {
 });
 
 async function cachedOrFetch(request, cacheName, key = request.url) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(key);
-  if (cached) return cached;
+  let cache;
+  try {
+    cache = await caches.open(cacheName);
+    const cached = await cache.match(key);
+    if (cached) return cached;
+  } catch { /* Restricted browser storage must not block the available network. */ }
   const response = await fetch(request);
-  if (response.ok && response.status === 200) {
+  if (cache && response.ok && response.status === 200) {
     // Cache capacity problems must not prevent online use of a valid response.
     try { await cache.put(key, response.clone()); } catch { /* Explicit preparation reports cache failures below. */ }
   }
@@ -80,13 +84,17 @@ async function cachedOrFetch(request, cacheName, key = request.url) {
 }
 
 async function cachedAudioRange(request) {
-  const cache = await caches.open(SHELL_CACHE);
-  const cached = await cache.match(request.url);
+  let cached;
+  try {
+    const cache = await caches.open(SHELL_CACHE);
+    cached = await cache.match(request.url);
+  } catch { return fetch(request); }
   if (!cached || cached.status !== 200) return fetch(request);
   const match = /^bytes=(\d*)-(\d*)$/i.exec(request.headers.get('range').trim());
   // A complete 200 response is a valid fallback for unsupported or multiple ranges.
   if (!match || (!match[1] && !match[2])) return cached;
-  const body = await cached.arrayBuffer();
+  let body;
+  try { body = await cached.arrayBuffer(); } catch { return fetch(request); }
   const size = body.byteLength;
   let start, end;
   if (match[1]) {

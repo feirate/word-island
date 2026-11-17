@@ -131,5 +131,5 @@ test('the classic service worker loads the manifest and precaches every clip plu
   await installation;
   assert.deepEqual(imported, allowedScripts.map(file => new URL(file, scope).href));
   assert.deepEqual(cached.filter(url => url.endsWith('.m4a')), precache().map(path => new URL(path, scope).href));
-  for (const file of ['assets/audio/precache.js', 'assets/companions-precache.js', 'src/kb3.js', 'src/practice.js', 'src/story.js', 'src/companions.js', 'src/companion-view.js','src/speech-audio.js']) assert.ok(cached.includes(`${scope}${file}`), file);
+  for (const file of ['assets/audio/precache.js', 'assets/companions-precache.js', 'src/kb3.js', 'src/practice.js', 'src/story.js', 'src/companions.js', 'src/companion-view.js','src/speech-audio.js','src/model-loader.js']) assert.ok(cached.includes(`${scope}${file}`), file);
 });

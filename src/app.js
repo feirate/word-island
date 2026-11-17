@@ -47,6 +47,8 @@ const pendingClips = new Set();
 let readDays = new Set();
 const demoReadDays = new Set();
 let offlineRegistration = null;
+let offlineRegistrationTask=null;
+let offlinePreparing=false;
 let guide=readGuide(null);
 let speech=null;
 let speechOverride=null;
@@ -218,14 +220,39 @@ async function confirmDeleteProfile() {
   finally {profileBusy=false;$('#confirm-delete-profile').disabled=false;renderProfileList();}
 }
 
+function showWorldLoading({loaded=0,total=3,label='正在准备小岛…'}={}) {
+  const loading=$('#world-loading');loading.hidden=false;
+  loading.innerHTML='<span class="loading-seed" aria-hidden="true">🌱</span><strong></strong><span></span>';
+  loading.querySelector('strong').textContent=label;
+  loading.querySelector('span:last-child').textContent=`已经准备 ${loaded} / ${total}，请保持联网。`;
+}
+
+function showWorldError(error) {
+  const loading=$('#world-loading');loading.hidden=false;
+  loading.innerHTML='<span class="loading-seed" aria-hidden="true">🌱</span><strong>画面还没准备好</strong><span></span><button class="button" type="button" data-action="retry-world">再试一次</button><small></small>';
+  loading.querySelector('span:last-of-type').textContent=error.message;
+  loading.querySelector('small').textContent=/MicroMessenger/i.test(navigator.userAgent)?'学习记录还在。微信中仍打不开时，可从右上角选择在 Safari 打开。':'学习记录还在。请保持联网，再试一次。';
+}
+
+async function retryWorld() {
+  if(!world.renderer||/画面暂时中断|重新打开页面/.test(world.getDiagnostics().error||'')){location.reload();return;}
+  $('#world-asset-retry').disabled=true;
+  try {
+    await world.retryLoads();
+    if(world.getDiagnostics().sceneReady)$('#world-loading').hidden=true;
+    $('#world-asset-retry').hidden=Object.keys(world.getDiagnostics().assetErrors).length===0;
+  }catch(error){showWorldError(error);}
+  finally{$('#world-asset-retry').disabled=false;}
+}
+
 const world = new WorldView($('#world-canvas'), {
   onInteract: handleWorldInteraction,
-  onReady() { $('#world-loading').hidden = true; },
+  onLoading:showWorldLoading,
+  onReady() {},
+  onSceneReady(){ $('#world-loading').hidden=true; },
+  onAssetError(){ $('#world-asset-retry').hidden=false;toast('伙伴还在路上，先继续探索吧。稍后可以点“再接伙伴”。'); },
   onFrame: positionSpeech,
-  onError(error) {
-    $('#world-loading').innerHTML = '<span class="loading-seed">🌱</span><strong>小岛还没准备好</strong><span></span><button class="button" type="button" data-action="reload">重新打开</button>';
-    $('#world-loading span:last-of-type').textContent = `模型加载失败：${error.message}。请联网重试，并确认设备支持 WebGL 2。`;
-  },
+  onError:showWorldError,
 });
 world.ready.catch(() => {});
 
@@ -807,23 +834,35 @@ function checkImportedAudio(blob) {
   });
 }
 
+function registerOfflineWorker() {
+  if(!('serviceWorker' in navigator))return Promise.reject(new Error('这个浏览器暂不支持离线资源缓存。'));
+  offlineRegistrationTask ||= Promise.resolve().then(()=>navigator.serviceWorker.register('./sw.js')).then(registration=>{offlineRegistration=registration;return registration;}).catch(error=>{offlineRegistrationTask=null;throw error;});
+  return offlineRegistrationTask;
+}
+
 async function prepareOffline() {
-  const detail=$('#offline-detail');detail.textContent='正在准备程序和三维场景…';
+  if(offlinePreparing)return;
+  offlinePreparing=true;
+  const detail=$('#offline-detail'),button=$('#prepare-offline');button.disabled=true;
+  detail.textContent='正在准备程序和三维场景…';
+  const attempt={active:true};
+  let timeout,channel;
   try {
-    if(!('serviceWorker' in navigator))throw new Error('这个浏览器暂不支持离线资源缓存。');
-    offlineRegistration ||= await navigator.serviceWorker.register('./sw.js');
-    const registration=await navigator.serviceWorker.ready;
-    const channel=new MessageChannel();
-    const result=await new Promise((resolve,reject)=>{
-      const timeout=setTimeout(()=>reject(new Error('离线资源准备超时，请保持联网再试一次。')),45000);
-      channel.port1.onmessage=event=>{clearTimeout(timeout);channel.port1.close();resolve(event.data);};
-      registration.active.postMessage({type:'CACHE_MODELS'},[channel.port2]);
-    });
+    const deadline=new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('离线资源准备超时，联网仍可学习；保持联网后可以重试。')),45000);});
+    const preparation=(async()=>{
+      await registerOfflineWorker();
+      const registration=await navigator.serviceWorker.ready;
+      if(!attempt.active)throw new Error('本轮离线准备已结束，请重新尝试。');
+      channel=new MessageChannel();
+      return new Promise(resolve=>{channel.port1.onmessage=event=>resolve(event.data);registration.active.postMessage({type:'CACHE_MODELS'},[channel.port2]);});
+    })();
+    const result=await Promise.race([preparation,deadline]);
     if(!result.ok)throw new Error('有模型尚未准备好，请保持联网后重新准备。');
     detail.textContent='程序、内置英音、八位伙伴和场景已可离线。自己导入的音频也保存在本机。';
     $('#offline-status').textContent='小岛已准备好离线探索';
     navigator.storage?.persist?.().catch(()=>{});
-  } catch(error){detail.textContent=error.message;$('#offline-status').textContent='联网探索 · 可准备离线';}
+  } catch(error){detail.textContent=error.message;$('#offline-status').textContent='联网探索 · 可准备离线';if(!offlineRegistration)offlineRegistrationTask=null;}
+  finally{attempt.active=false;clearTimeout(timeout);channel?.port1.close();channel?.port2.close();offlinePreparing=false;button.disabled=false;}
 }
 
 document.addEventListener('pointerdown',event=>{storyPointerButton=event.target.closest('[data-story-action]');},{capture:true});
@@ -856,6 +895,7 @@ document.addEventListener('click',event=>{
     'switch-profile':showProfileChooser,
     'visit-companion':visitCompanion,
     'retry-companion':()=>{companionPreviewKey=null;syncCompanionPreview();},
+    'retry-world':retryWorld,
     'start-unit':async()=>{if(await chooseUnit(d.startUnit))navigate('camp');},
     'open-parent':()=>$('#parent-dialog').showModal(),
     'back-task':()=>{if(microphoneBusy()){toast('先结束录音或等待麦克风请求完成。');return;}if(freeUnitId){openBooks(readingUnit().bookId);return;}stopAudio();phase='overview';freeWordId=null;freeUnitId=null;feedback=null;render();},
@@ -968,6 +1008,8 @@ window.addEventListener('storage',event=>{
 });
 render();
 showProfileChooser();
-world.ready.then(prepareOffline).catch(()=>{});
+// Register only after the first room is ready. Full model preparation is an
+// explicit parent action, so it cannot compete with the child's next scene.
+world.ready.then(()=>registerOfflineWorker().catch(()=>{})).catch(()=>{});
 // Read-only inspection surface for browser QA; never uploads or modifies progress.
 window.__wordIsland={world,getState:()=>structuredClone({activeProfile,demo,page,phase,dateKey:today(),progress:progress(),realProgress,plan:plan(),readingDone:readingDone(),activeWordId,phraseId:currentPhrase().id,readingUnitId:readingUnit().id,guide,speech,selectedCompanionId}),getCompanionDiagnostics:()=>companionView?.getDiagnostics()||null,getDiagnostics:()=>world.getDiagnostics()};

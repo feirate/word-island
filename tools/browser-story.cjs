@@ -93,7 +93,7 @@ fs.mkdirSync(out,{recursive:true});
     await phone.locator('#demo-banner [data-action="demo-ending"]').click();
     await phone.locator('#ask-hero').click();await phone.locator('[data-story-action="finish"]').click();
     assert.equal(JSON.stringify((await phone.evaluate(()=>window.__wordIsland.getState())).guide),realGuide,'demo dialogue must not finish the real onboarding');
-    await phone.waitForTimeout(100);
+    await phone.waitForFunction(()=>window.__wordIsland.world.getObjectScreenPoint('home.bunny')?.visible);
     const bunny=await phone.evaluate(()=>window.__wordIsland.world.getObjectScreenPoint('home.bunny'));
     assert(bunny?.visible);
     await phone.touchscreen.tap(bunny.x,bunny.y);

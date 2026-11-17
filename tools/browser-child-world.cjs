@@ -44,7 +44,7 @@ const base=process.env.PREVIEW_URL||'http://127.0.0.1:4173';
       await page.screenshot({path:`design/screenshots/child-world-${scene}.png`,fullPage:false});
     }
     const ids=['bunny','squirrel','cat','dog','hedgehog','turtle','raccoon','fox'];
-    await page.evaluate(ids=>{window.childWorld.setScene('home');window.childWorld.setCompanionsUnlocked(ids);},ids);
+    await page.evaluate(async ids=>{await window.childWorld.setScene('home');await window.childWorld.setCompanionsUnlocked(ids);},ids);
     for(const id of ['character.hero','character.guide',...ids.map(id=>`home.${id}`)])await pick(id);
     await page.screenshot({path:'design/screenshots/child-world-home-all.png',fullPage:false});
     await page.setViewportSize({width:390,height:844});

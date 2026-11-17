@@ -28,6 +28,7 @@ const base=process.env.PREVIEW_URL||'http://127.0.0.1:4173';
   await page.locator('#parent-button').click();await page.locator('[data-action="demo-all"]').click();
   assert.equal((await state()).demo,true);assert.equal((await state()).progress.companions.length,8);
   assert.equal((await state()).progress.rewardDates.length,56);assert.equal(JSON.stringify((await state()).realProgress),before);
+  await page.waitForFunction(()=>['bunny','squirrel','cat','dog','hedgehog','turtle','raccoon','fox'].every(id=>window.__wordIsland.world.getObjectScreenPoint(`home.${id}`)?.visible));
   await page.waitForTimeout(550);
   await page.screenshot({path:path.resolve('design/screenshots/companions-home-all.png'),fullPage:true});
   for(const id of ['bunny','squirrel','cat','dog','hedgehog','turtle','raccoon','fox']){
