@@ -37,6 +37,7 @@ export class WorldView {
     this._roots = {};
     this._assetTasks = new Map();
     this._assetErrors = new Map();
+    this._assetLoadStates = new Map();
     this._sceneLoads = new Map();
     this._loadQueue = [];
     this._runningLoads = 0;
@@ -170,7 +171,9 @@ export class WorldView {
     if (existing) { existing.priority = Math.min(priority, existing.priority); return existing.promise; }
     if (this._assetErrors.has(name) && !retry) return Promise.reject(this._assetErrors.get(name));
     this._assetErrors.delete(name);
-    const task = { name, priority, controller: new AbortController(), running: false, cancelled: false };
+    const task = { name, priority, controller: new AbortController(), running: false, cancelled: false,
+      loadState: { phase: 'queued', loaded: 0, total: 0, elapsedMs: 0 } };
+    this._assetLoadStates.set(name, task.loadState);
     task.promise = new Promise((resolve, reject) => { task.resolve = resolve; task.reject = reject; });
     // A caller may stop waiting after changing scenes or profiles.
     task.promise.catch(() => {});
@@ -197,19 +200,30 @@ export class WorldView {
   }
 
   async _runLoad(task) {
+    task.startedAt = performance.now();
+    this._updateLoadState(task, { phase: 'request' });
     try {
       const model = await loadModel(new URL(`../${ASSET_FILES[task.name]}`, import.meta.url).href, {
         signal: task.controller.signal, timeoutMs: this._modelTimeoutMs,
-        onProgress: () => { if (!task.cancelled) this._reportLoading(); },
+        onProgress: (event) => {
+          if (this._disposed || task.cancelled) return;
+          this._updateLoadState(task, event);
+          this._reportLoading();
+        },
       });
       if (this._disposed || task.cancelled) {
         this._disposeObject(model.scene);
         throw new Error('三维模型加载已取消。');
       }
       this._registerAsset(task.name, model);
+      this._updateLoadState(task, { phase: 'ready' });
       task.resolve(this._roots[task.name]);
     } catch (cause) {
       const error = new Error(`无法加载${ASSET_LABELS[task.name]}三维模型：${cause.message}`);
+      error.name = cause.name || 'Error';
+      error.cause = cause;
+      if (cause.details) error.details = cause.details;
+      this._updateLoadState(task, cause.details || {});
       if (!this._disposed && !task.cancelled) {
         this._assetErrors.set(task.name, error);
         if (task.priority > 0) this.onAssetError(error, { id: task.name });
@@ -222,6 +236,13 @@ export class WorldView {
       this._reportLoading();
       this._drainLoads();
     }
+  }
+
+  _updateLoadState(task, event) {
+    const state = task.loadState;
+    for (const key of ['phase', 'reason']) if (typeof event[key] === 'string') state[key] = event[key];
+    for (const key of ['loaded', 'total']) if (Number.isFinite(event[key]) && event[key] >= 0) state[key] = event[key];
+    state.elapsedMs = Number.isFinite(event.elapsedMs) ? Math.max(0, event.elapsedMs) : Math.round(performance.now() - task.startedAt);
   }
 
   _registerAsset(name, gltf) {
@@ -325,9 +346,16 @@ export class WorldView {
     const pending = required.find(name => !this._roots[name]);
     const event = { scene: this.currentScene, loaded, total: required.length, label: `正在准备${ASSET_LABELS[pending] || '小岛'}…` };
     const key = JSON.stringify(event);
-    if (this._lastLoadingKey === key) return;
+    const state = this._assetLoadStates.get(pending);
+    const bytesLoaded = state?.loaded || 0;
+    const elapsedMs = state?.elapsedMs || 0;
+    const progressKey = `${Math.floor(bytesLoaded / 1024)}:${Math.floor(elapsedMs / 1000)}`;
+    const now = performance.now();
+    if (this._lastLoadingKey === key && (this._lastLoadingProgressKey === progressKey || now - this._lastLoadingAt < 200)) return;
     this._lastLoadingKey = key;
-    this.onLoading(event);
+    this._lastLoadingProgressKey = progressKey;
+    this._lastLoadingAt = now;
+    this.onLoading({ ...event, bytesLoaded, elapsedMs });
   }
 
   _reportError(error, asset = null) {
@@ -681,6 +709,7 @@ export class WorldView {
   getDiagnostics() {
     return { ready: this._loaded, scene: this.currentScene, sceneReady: this._sceneReady, models: ASSET_NAMES.filter(name => this._roots[name]),
       loadingModels: [...this._assetTasks.keys()], assetErrors: Object.fromEntries([...this._assetErrors].map(([id,error]) => [id,error.message])),
+      assetLoadStates: Object.fromEntries([...this._assetLoadStates].map(([id,state]) => [id,{ label: ASSET_LABELS[id], ...state }])),
       interactions: [...this._interactionNodes.keys()], companionUnlocked: this._unlocked,unlockedCompanions:[...this._unlockedIds],active:this._active,playerName:this._playerName,
       reducedMotion: this._reducedMotion, visibleInViewport: this._inViewport, error: this._error || null, ...this._stats,
       actors: this._actors.map((actor) => ({ name: actor.name, modelAsset:actor.modelAsset, displayName:actor.displayName, visible: actor.group.visible,

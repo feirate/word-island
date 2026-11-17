@@ -36,6 +36,7 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html manifest.webmanifest sw.js _site/
+          cp _site/index.html _site/start.html
           cp -R src vendor icons _site/
           find assets -type f \( \
             -name '*.glb' -o -name '*.gltf' -o -name '*.bin' -o \

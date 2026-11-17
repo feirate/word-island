@@ -1,5 +1,5 @@
 /* Runtime files must be versioned together when the app or models change. */
-const VERSION = 'v0.6.3';
+const VERSION = 'v0.6.4';
 importScripts('./assets/audio/precache.js');
 importScripts('./assets/companions-precache.js');
 const SCOPE = self.registration.scope;
@@ -68,7 +68,7 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-async function cachedOrFetch(request, cacheName, key = request.url) {
+async function cachedOrFetch(request, cacheName, event, key = request.url) {
   let cache;
   try {
     cache = await caches.open(cacheName);
@@ -77,8 +77,36 @@ async function cachedOrFetch(request, cacheName, key = request.url) {
   } catch { /* Restricted browser storage must not block the available network. */ }
   const response = await fetch(request);
   if (cache && response.ok && response.status === 200) {
-    // Cache capacity problems must not prevent online use of a valid response.
-    try { await cache.put(key, response.clone()); } catch { /* Explicit preparation reports cache failures below. */ }
+    // Return the live response immediately. Cache.put consumes the entire body;
+    // waiting for it would hide download progress and delay the child's scene.
+    try {
+      const writing = cache.put(key, response.clone()).catch(() => {});
+      event?.waitUntil?.(writing);
+    } catch { /* Explicit preparation reports cache failures below. */ }
+  }
+  return response;
+}
+
+async function navigationResponse(request, event) {
+  let response;
+  try {
+    // Revalidate even a fresh HTTP-cache entry so an installed old worker can
+    // receive the new versioned entry point after a deployment.
+    response = await fetch(request, { cache: 'no-cache' });
+  } catch (error) {
+    try {
+      const cache = await caches.open(SHELL_CACHE);
+      const cached = await cache.match(absolute('index.html'));
+      if (cached) return cached;
+    } catch { /* With neither network nor cache, retain the real network error. */ }
+    throw error;
+  }
+  if (response.ok && response.status === 200) {
+    try {
+      const copy = response.clone();
+      const writing = caches.open(SHELL_CACHE).then(cache => cache.put(absolute('index.html'), copy)).catch(() => {});
+      event?.waitUntil?.(writing);
+    } catch { /* The live entry point remains usable if persistence is unavailable. */ }
   }
   return response;
 }
@@ -126,13 +154,18 @@ self.addEventListener('fetch', (event) => {
     if (AUDIO_URLS.has(url.href)) event.respondWith(cachedAudioRange(request));
     return;
   }
-  const navigation = request.mode === 'navigate' && [absolute('./'), absolute('index.html')].includes(`${url.origin}${url.pathname}`);
+  const canonical = `${url.origin}${url.pathname}`;
+  const navigation = request.mode === 'navigate' && [absolute('./'), absolute('index.html'), absolute('start.html')].includes(canonical);
+  const params = [...url.searchParams];
+  const currentCodeVersion = /\.(?:js|css)$/.test(url.pathname) && params.length === 1
+    && params[0][0] === 'v' && params[0][1] === VERSION.slice(1);
+  const coreKey = CORE_SET.has(url.href) ? url.href : currentCodeVersion && CORE_SET.has(canonical) ? canonical : null;
   if (navigation) {
-    event.respondWith(cachedOrFetch(request, SHELL_CACHE, absolute('index.html')));
-  } else if (CORE_SET.has(url.href)) {
-    event.respondWith(cachedOrFetch(request, SHELL_CACHE));
+    event.respondWith(navigationResponse(request, event));
+  } else if (coreKey) {
+    event.respondWith(cachedOrFetch(request, SHELL_CACHE, event, coreKey));
   } else if (MODEL_URLS.has(url.href)) {
-    event.respondWith(cachedOrFetch(request, MODEL_CACHE));
+    event.respondWith(cachedOrFetch(request, MODEL_CACHE, event));
   }
 });
 

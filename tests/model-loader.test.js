@@ -11,7 +11,7 @@ test('model bytes and progress come from a successful complete response',async()
   const progress=[];
   const bytes=await fetchModelData(url,{onProgress:event=>progress.push(event)});
   assert.deepEqual([...new Uint8Array(bytes)],[1,2,3,4]);
-  assert.deepEqual(progress.at(-1),{loaded:4,total:4});
+  assert.deepEqual({loaded:progress.at(-1).loaded,total:progress.at(-1).total},{loaded:4,total:4});
 });
 
 test('HTTP errors cannot become a successfully loaded model',async()=>{
@@ -57,4 +57,34 @@ test('late responses after a timeout do not publish stale progress',async()=>{
   release(new Response(new Uint8Array([1,2,3])));
   await new Promise(resolve=>setTimeout(resolve,0));
   assert.deepEqual(progress,[]);
+});
+
+test('continued byte progress can finish after the inactivity budget',async()=>{
+  let interval;
+  globalThis.fetch=async()=>new Response(new ReadableStream({
+    start(controller){let n=0;interval=setInterval(()=>{controller.enqueue(new Uint8Array([++n]));if(n===8){clearInterval(interval);controller.close();}},50);},
+    cancel(){clearInterval(interval);},
+  }));
+  const bytes=await fetchModelData(url,{timeoutMs:250,maxDurationMs:2000});
+  assert.deepEqual([...new Uint8Array(bytes)],[1,2,3,4,5,6,7,8]);
+});
+
+test('a stalled body reports the last bytes and the inactivity reason',async()=>{
+  globalThis.fetch=async()=>new Response(new ReadableStream({start(controller){controller.enqueue(new Uint8Array([1,2,3]));}}));
+  await assert.rejects(fetchModelData(url,{timeoutMs:30,maxDurationMs:1000}),error=>{
+    assert.equal(error.name,'TimeoutError');assert.equal(error.details.reason,'idle-timeout');
+    assert.equal(error.details.loaded,3);assert.equal(error.details.phase,'receiving');return true;
+  });
+});
+
+test('the separate overall limit bounds even a continually active download',async()=>{
+  let interval;
+  globalThis.fetch=async()=>new Response(new ReadableStream({
+    start(controller){interval=setInterval(()=>controller.enqueue(new Uint8Array([1])),20);},
+    cancel(){clearInterval(interval);},
+  }));
+  await assert.rejects(fetchModelData(url,{timeoutMs:200,maxDurationMs:100}),error=>{
+    assert.equal(error.name,'TimeoutError');assert.equal(error.details.reason,'overall-timeout');
+    assert(error.details.loaded>0);return true;
+  });
 });

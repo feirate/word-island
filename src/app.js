@@ -10,6 +10,7 @@ import { loadProgress, updateProgress, exportProgress, importProgress, getClip, 
 import { MAX_PROFILES, PROFILE_REGISTRY_KEY, loadProfiles, createProfile, deleteProfile, getProfile, profileStorageKey, withProfileStorageLock } from './profiles.js';
 
 const $ = selector => document.querySelector(selector);
+const APP_VERSION='0.6.4';
 const panel = $('#notebook-content');
 let activeProfile=null;
 let profileEpoch=0;
@@ -220,18 +221,25 @@ async function confirmDeleteProfile() {
   finally {profileBusy=false;$('#confirm-delete-profile').disabled=false;renderProfileList();}
 }
 
-function showWorldLoading({loaded=0,total=3,label='正在准备小岛…'}={}) {
+function showWorldLoading({loaded=0,total=3,label='正在准备小岛…',bytesLoaded=0,elapsedMs=0}={}) {
   const loading=$('#world-loading');loading.hidden=false;
-  loading.innerHTML='<span class="loading-seed" aria-hidden="true">🌱</span><strong></strong><span></span>';
+  if(loading.dataset.state!=='loading'){
+    loading.dataset.state='loading';
+    loading.innerHTML='<span class="loading-seed" aria-hidden="true">🌱</span><strong></strong><span></span><small>首次打开会下载三维场景，慢网时请稍等。</small>';
+  }
   loading.querySelector('strong').textContent=label;
-  loading.querySelector('span:last-child').textContent=`已经准备 ${loaded} / ${total}，请保持联网。`;
+  const received=bytesLoaded>0?` · 已接收 ${Math.round(bytesLoaded/1024)} KB`:'';
+  const elapsed=elapsedMs>=1000?` · ${Math.floor(elapsedMs/1000)} 秒`:'';
+  loading.querySelector('span:last-of-type').textContent=`已准备 ${loaded} / ${total}${received}${elapsed}`;
 }
 
 function showWorldError(error) {
   const loading=$('#world-loading');loading.hidden=false;
-  loading.innerHTML='<span class="loading-seed" aria-hidden="true">🌱</span><strong>画面还没准备好</strong><span></span><button class="button" type="button" data-action="retry-world">再试一次</button><small></small>';
+  loading.dataset.state='error';
+  loading.innerHTML='<span class="loading-seed" aria-hidden="true">🌱</span><strong>画面还没准备好</strong><span></span><button class="button" type="button" data-action="retry-world">再试一次</button><small></small><details><summary>查看加载信息</summary><pre></pre></details>';
   loading.querySelector('span:last-of-type').textContent=error.message;
-  loading.querySelector('small').textContent=/MicroMessenger/i.test(navigator.userAgent)?'学习记录还在。微信中仍打不开时，可从右上角选择在 Safari 打开。':'学习记录还在。请保持联网，再试一次。';
+  loading.querySelector('small').textContent=`学习记录还在。请保持联网，再试一次。版本 ${APP_VERSION}`;
+  loading.querySelector('pre').textContent=JSON.stringify({version:APP_VERSION,...error.details},null,2);
 }
 
 async function retryWorld() {

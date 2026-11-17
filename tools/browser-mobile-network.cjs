@@ -87,7 +87,7 @@ const actionable=text=>/超时|无法|不支持|失败|不可用|未能|暂时|�
       },null,{serviceWorkers:'block',setup:async context=>{
         // Configure the public constructor timeout in this fixture only; the
         // app still drives its actual selection, error overlay and retry UI.
-        await context.route('**/src/app.js',async route=>{
+        await context.route('**/src/app.js*',async route=>{
           const response=await route.fetch(),source=await response.text();
           const constructor="new CompanionView($('#companion-preview'))";
           assert(source.includes(constructor),'the fixture must configure the actual app preview');
