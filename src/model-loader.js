@@ -66,10 +66,55 @@ export async function fetchModelData(url,{signal,timeoutMs=30000,maxDurationMs=1
   }
 }
 
+function reconnectWait(delayMs,signal) {
+  return new Promise((resolve,reject)=>{
+    let timer;
+    const finish=error=>{clearTimeout(timer);signal?.removeEventListener('abort',cancel);error?reject(error):resolve();};
+    const cancel=()=>finish(abortError());
+    if(signal?.aborted){cancel();return;}
+    signal?.addEventListener('abort',cancel,{once:true});timer=setTimeout(()=>finish(),delayMs);
+  });
+}
+
+// Recovery is a new complete-file request, never a claim of byte-range resumption.
+export async function fetchModelDataWithRetry(url,{signal,timeoutMs=30000,maxDurationMs=180000,onProgress,maxAttempts=2,retryDelayMs=800,canRetry=()=>typeof document==='undefined'||!document.hidden}={}) {
+  const started=Date.now(),limit=Math.min(2,Math.max(1,Number.isFinite(maxAttempts)?Math.floor(maxAttempts):2));
+  let last={phase:'requesting',loaded:0,total:0};
+  const elapsed=()=>Date.now()-started;
+  const decorate=(error,attempts)=>{
+    error.details={...last,...error.details,attempts,maxAttempts:limit,elapsedMs:elapsed()};return error;
+  };
+  const overall=attempts=>{
+    const error=new Error(`模型下载用时较长，已收到 ${Math.round((last.loaded||0)/1024)} KB，请稍后重试。`);
+    error.name='TimeoutError';error.details={reason:'overall-timeout'};return decorate(error,attempts);
+  };
+  for(let attempt=1;attempt<=limit;attempt++){
+    if(signal?.aborted){const error=abortError();error.details={reason:'abort'};throw decorate(error,attempt-1);}
+    const remaining=maxDurationMs-elapsed();if(remaining<=0)throw overall(attempt-1);
+    try{
+      return await fetchModelData(url,{signal,timeoutMs,maxDurationMs:remaining,onProgress:event=>{
+        last={...event,attempt,maxAttempts:limit,elapsedMs:elapsed()};onProgress?.({...last});
+      }});
+    }catch(error){
+      const failed=decorate(error,attempt),reason=failed.details.reason;
+      const transient=['idle-timeout','network'].includes(reason)||(reason==='http'&&[502,503,504].includes(failed.details.status));
+      if(failed.name==='AbortError'||!transient||attempt===limit||!canRetry())throw failed;
+      const budget=maxDurationMs-elapsed();if(budget<=0)throw overall(attempt);
+      last={...last,phase:'retrying',reason,attempt:attempt+1,maxAttempts:limit,elapsedMs:elapsed()};onProgress?.({...last});
+      const delay=Math.max(0,Number.isFinite(retryDelayMs)?retryDelayMs:800);
+      try{await reconnectWait(Math.min(delay,budget),signal);}
+      catch(cancelled){cancelled.details={reason:'abort'};throw decorate(cancelled,attempt);}
+      if(delay>=budget||elapsed()>=maxDurationMs)throw overall(attempt);
+      if(!canRetry())throw decorate(failed,attempt);
+    }
+  }
+}
+
 export async function loadModel(url,options={}) {
-  const started=Date.now(),bytes=await fetchModelData(url,options);
+  const started=Date.now();let attempts=0;
+  const bytes=await fetchModelDataWithRetry(url,{...options,onProgress:event=>{attempts=event.attempt;options.onProgress?.(event);}});
   try {
     const {GLTFLoader}=await import('../vendor/loaders/GLTFLoader.js');
     return await new GLTFLoader().parseAsync(bytes,new URL('.',url).href);
-  }catch(error){error.details ||= {phase:'parsing',loaded:bytes.byteLength,total:bytes.byteLength,elapsedMs:Date.now()-started,reason:'parse'};throw error;}
+  }catch(error){error.details ||= {phase:'parsing',loaded:bytes.byteLength,total:bytes.byteLength,elapsedMs:Date.now()-started,reason:'parse',attempts};throw error;}
 }

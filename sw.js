@@ -1,5 +1,5 @@
 /* Code follows app versions; large immutable assets follow content revisions. */
-const VERSION = 'v0.7.0';
+const VERSION = 'v0.7.1';
 importScripts('./assets/audio/precache.js');
 importScripts('./assets/companions-precache.js');
 importScripts('./assets/runtime-manifest.js');

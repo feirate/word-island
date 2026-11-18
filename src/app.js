@@ -10,7 +10,7 @@ import { loadProgress, updateProgress, exportProgress, importProgress, getClip, 
 import { MAX_PROFILES, PROFILE_REGISTRY_KEY, loadProfiles, createProfile, deleteProfile, getProfile, profileStorageKey, withProfileStorageLock } from './profiles.js';
 
 const $ = selector => document.querySelector(selector);
-const APP_VERSION='0.7.0';
+const APP_VERSION='0.7.1';
 const panel = $('#notebook-content');
 let activeProfile=null;
 let profileEpoch=0;
@@ -230,7 +230,7 @@ async function confirmDeleteProfile() {
   finally {profileBusy=false;$('#confirm-delete-profile').disabled=false;renderProfileList();}
 }
 
-function showWorldLoading({loaded=0,total=3,label='正在准备小岛…',bytesLoaded=0,elapsedMs=0}={}) {
+function showWorldLoading({loaded=0,total=3,label='正在准备小岛…',bytesLoaded=0,elapsedMs=0,attempt=1}={}) {
   const loading=$('#world-loading');loading.hidden=false;
   if(loading.dataset.state!=='loading'){
     loading.dataset.state='loading';
@@ -240,6 +240,7 @@ function showWorldLoading({loaded=0,total=3,label='正在准备小岛…',bytesL
   const received=bytesLoaded>0?` · 已接收 ${Math.round(bytesLoaded/1024)} KB`:'';
   const elapsed=elapsedMs>=1000?` · ${Math.floor(elapsedMs/1000)} 秒`:'';
   loading.querySelector('span:last-of-type').textContent=`已准备 ${loaded} / ${total}${received}${elapsed}`;
+  loading.querySelector('small').textContent=attempt>1?'网络停了一下，正在自动再试一次。你也可以先开始学习。':'小岛会继续准备，你可以先开始今天的学习。';
 }
 
 function showWorldError(error) {
@@ -247,7 +248,7 @@ function showWorldError(error) {
   loading.dataset.state='error';
   loading.innerHTML='<span class="loading-seed" aria-hidden="true">🌱</span><strong>画面还没准备好</strong><span></span><button class="button" type="button" data-action="retry-world">再试一次</button><button class="button" type="button" data-action="start-learning">先开始今日任务 →</button><small></small><details><summary>查看加载信息</summary><pre></pre></details>';
   loading.querySelector('span:last-of-type').textContent=error.message;
-  loading.querySelector('small').textContent=`学习记录还在。请保持联网，再试一次。版本 ${APP_VERSION}`;
+  loading.querySelector('small').textContent=`学习记录还在。${error.details?.attempts>1?'已自动再试一次，仍未完成，请稍后再试。':'请保持联网，再试一次。'}版本 ${APP_VERSION}`;
   loading.querySelector('pre').textContent=JSON.stringify({version:APP_VERSION,...error.details},null,2);
 }
 
@@ -266,7 +267,7 @@ const world = new DeferredWorld($('#world-canvas'), {
   onInteract: handleWorldInteraction,
   onLoading:showWorldLoading,
   onReady() {},
-  onSceneReady(){ $('#world-loading').hidden=true;positionSpeech(); },
+  onSceneReady(){ $('#world-loading').hidden=true;positionSpeech();prepareCurrentLesson(); },
   onAssetError(){ $('#world-asset-retry').hidden=false;toast('伙伴还在路上，先继续探索吧。稍后可以点“再接伙伴”。'); },
   onFrame: positionSpeech,
   onError:showWorldError,
@@ -886,6 +887,9 @@ async function activeOfflineWorker() {
 
 function prepareCurrentLesson() {
   if(!activeProfile||demo||!('serviceWorker' in navigator)||document.hidden)return;
+  // Finish the child's scene before starting the unit's background audio pack.
+  // Listening to one example stays on demand, including when 3D is unavailable.
+  if(page!=='camp'||!['listen','spell','read'].includes(phase)||!world.getDiagnostics().sceneReady)return;
   const paths=lessonAudioFiles({unitIds:[plan().unitId,selectedUnit().id,freeUnitId].filter(Boolean),wordIds:plan().wordIds});
   lessonPreparer.prepare(paths);
 }

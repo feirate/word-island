@@ -255,8 +255,9 @@ export class WorldView {
 
   _updateLoadState(task, event) {
     const state = task.loadState;
-    for (const key of ['phase', 'reason']) if (typeof event[key] === 'string') state[key] = event[key];
-    for (const key of ['loaded', 'total']) if (Number.isFinite(event[key]) && event[key] >= 0) state[key] = event[key];
+    for (const key of ['phase', 'reason', 'retryReason']) if (typeof event[key] === 'string') state[key] = event[key];
+    for (const key of ['loaded', 'total', 'attempt', 'maxAttempts', 'attempts']) if (Number.isFinite(event[key]) && event[key] >= 0) state[key] = event[key];
+    if (event.phase === 'headers' || event.phase === 'ready') { delete state.reason; delete state.retryReason; }
     state.elapsedMs = Number.isFinite(event.elapsedMs) ? Math.max(0, event.elapsedMs) : Math.round(performance.now() - task.startedAt);
   }
 
@@ -359,9 +360,11 @@ export class WorldView {
     const required = this._loaded ? [this.currentScene] : CORE_ASSETS;
     const loaded = required.filter(name => this._roots[name]).length;
     const pending = required.find(name => !this._roots[name]);
-    const event = { scene: this.currentScene, loaded, total: required.length, label: `正在准备${ASSET_LABELS[pending] || '小岛'}…` };
-    const key = JSON.stringify(event);
     const state = this._assetLoadStates.get(pending);
+    const attempt = state?.attempt || 1;
+    const event = { scene: this.currentScene, loaded, total: required.length, attempt, maxAttempts: state?.maxAttempts || 2,
+      label: `正在${attempt > 1 ? '继续' : ''}准备${ASSET_LABELS[pending] || '小岛'}…` };
+    const key = JSON.stringify(event);
     const bytesLoaded = state?.loaded || 0;
     const elapsedMs = state?.elapsedMs || 0;
     const progressKey = `${Math.floor(bytesLoaded / 1024)}:${Math.floor(elapsedMs / 1000)}`;
